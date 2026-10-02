@@ -1,0 +1,218 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ENUMS (Domínios do Dicionário de Dados)
+enum PerfilUsuario {
+  ADMINISTRADOR
+  DOCENTE
+  ALUNO
+}
+
+enum StatusTroca {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  CANCELADA
+}
+
+enum StatusManutencao {
+  ABERTA
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+enum SeveridadeRisco {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum StatusRelato {
+  REGISTRADO
+  ANALISE
+  CONCLUIDO
+}
+
+// TABELAS / MODELOS
+model Usuario {
+  idUsuario      Int           @id @default(autoincrement()) @map("id_usuario")
+  nome           String        @db.VarChar(100)
+  email          String        @unique @db.VarChar(100)
+  senha          String        @db.VarChar(255)
+  nifCpf         String        @unique @db.VarChar(20) @map("nif_cpf")
+  perfil         PerfilUsuario
+  primeiroAcesso Boolean       @default(true) @map("primeiro_acesso")
+  senhaAlterada  Boolean       @default(false) @map("senha_alterada")
+
+  reservas              Reserva[]
+  reservasAprovadas     Reserva[]          @relation("AdminAprovador")
+  trocasSolicitadas     TrocaSala[]        @relation("DocenteSolicitante")
+  trocasAtendidas       TrocaSala[]        @relation("DocenteAtendido")
+  manutencoesReportadas Manutencao[]       @relation("UsuarioManutencao")
+  relatosEnviados       RelatosSugestoes[]
+  historicoSenhas       HistoricoSenha[]
+  turmas                TurmaUsuario[]
+
+  @@map("USUARIO")
+}
+
+model Sala {
+  idSala     Int     @id @default(autoincrement()) @map("id_sala")
+  nome       String  @db.VarChar(50)
+  bloco      String  @db.VarChar(10)
+  capacidade Int
+  tipo       String  @db.VarChar(30)
+  ativa      Boolean @default(true)
+  qrCode     String  @map("qr_code") @db.VarChar(255)
+
+  reservas     Reserva[]
+  equipamentos Equipamento[]
+  trocasOrigem TrocaSala[]   @relation("SalaOrigem")
+  trocasDestino TrocaSala[]  @relation("SalaDestino")
+  areasRisco   AreaRisco[]
+
+  @@map("SALA")
+}
+
+model Turma {
+  idTurma             Int      @id @default(autoincrement()) @map("id_turma")
+  nome                String   @db.VarChar(50)
+  periodo             String   @db.VarChar(20)
+  cargaHorariaSemanal Int      @map("carga_horaria_semanal")
+
+  usuarios   TurmaUsuario[]
+  reservas   Reserva[]
+  pontuacoes PontuacaoTurma[]
+
+  @@map("TURMA")
+}
+
+model TurmaUsuario {
+  idTurma   Int     @map("id_turma")
+  idUsuario Int     @map("id_usuario")
+
+  turma   Turma   @relation(fields: [idTurma], references: [idTurma])
+  usuario Usuario @relation(fields: [idUsuario], references: [idUsuario])
+
+  @@id([idTurma, idUsuario])
+  @@map("TURMA_USUARIO")
+}
+
+model Reserva {
+  idReserva       Int      @id @default(autoincrement()) @map("id_reserva")
+  dtReserva       DateTime @map("dt_reserva")
+  hrInicio        String   @map("hr_inicio") @db.VarChar(5)
+  hrFim           String   @map("hr_fim") @db.VarChar(5)
+  reservaUrgencia Boolean  @default(false) @map("reserva_urgencia")
+  idTurma         Int      @map("id_turma")
+  idSala          Int      @map("id_sala")
+  idDocente       Int      @map("id_docente")
+  idAdmin         Int?     @map("id_admin")
+
+  turma   Turma    @relation(fields: [idTurma], references: [idTurma])
+  sala    Sala     @relation(fields: [idSala], references: [idSala])
+  docente Usuario  @relation(fields: [idDocente], references: [idUsuario])
+  admin   Usuario? @relation("AdminAprovador", fields: [idAdmin], references: [idUsuario])
+
+  @@map("RESERVA")
+}
+
+model Equipamento {
+  idEquipamento Int    @id @default(autoincrement()) @map("id_equipamento")
+  nome          String @db.VarChar(100)
+  nif           String @unique @db.VarChar(50)
+  status        String @db.VarChar(20)
+  idSala        Int    @map("id_sala")
+
+  sala        Sala         @relation(fields: [idSala], references: [idSala])
+  manutencoes Manutencao[]
+
+  @@map("EQUIPAMENTO")
+}
+
+model Manutencao {
+  idManutencao  Int              @id @default(autoincrement()) @map("id_manutencao")
+  descricao     String           @db.VarChar(255)
+  dtAbertura    DateTime         @default(now()) @map("dt_abertura")
+  dtConclusao   DateTime?        @map("dt_conclusao")
+  status        StatusManutencao @default(ABERTA)
+  idEquipamento Int              @map("id_equipamento")
+  idUsuario     Int              @map("id_usuario")
+
+  equipamento Equipamento @relation(fields: [idEquipamento], references: [idEquipamento])
+  usuario     Usuario     @relation("UsuarioManutencao", fields: [idUsuario], references: [idUsuario])
+
+  @@map("MANUTENCAO")
+}
+
+model TrocaSala {
+  idTroca              Int         @id @default(autoincrement()) @map("id_troca")
+  motivo               String      @db.VarChar(255)
+  dtTroca              DateTime    @map("dt_troca")
+  status               StatusTroca @default(PENDENTE)
+  idSalaOrigem         Int         @map("id_sala_origem")
+  idSalaDestino        Int         @map("id_sala_destino")
+  idDocenteSolicitante Int         @map("id_docente_solicitante")
+  idDocenteAtendido    Int         @map("id_docente_atendido")
+
+  salaOrigem         Sala    @relation("SalaOrigem", fields: [idSalaOrigem], references: [idSala])
+  salaDestino        Sala    @relation("SalaDestino", fields: [idSalaDestino], references: [idSala])
+  docenteSolicitante Usuario @relation("DocenteSolicitante", fields: [idDocenteSolicitante], references: [idUsuario])
+  docenteAtendido    Usuario @relation("DocenteAtendido", fields: [idDocenteAtendido], references: [idUsuario])
+
+  @@map("TROCA_SALA")
+}
+
+model AreaRisco {
+  idRisco    Int             @id @default(autoincrement()) @map("id_risco")
+  descricao  String          @db.VarChar(255)
+  severidade SeveridadeRisco
+  bloco      String          @db.VarChar(10)
+  andar      Int
+  idSala     Int             @map("id_sala")
+
+  sala Sala @relation(fields: [idSala], references: [idSala])
+
+  @@map("AREA_RISCO")
+}
+
+model RelatosSugestoes {
+  idRelato  Int          @id @default(autoincrement()) @map("id_relato")
+  tipo      String       @db.VarChar(20)
+  mensagem  String       @db.Text
+  dtEnvio   DateTime     @default(now()) @map("dt_envio")
+  status    StatusRelato @default(REGISTRADO)
+  idUsuario Int          @map("id_usuario")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [idUsuario])
+
+  @@map("RELATOS_SUGESTOES")
+}
+
+model PontuacaoTurma {
+  idPontuaca   Int      @id @default(autoincrement()) @map("id_pontuaca")
+  pontos       Int
+  dtAtribuicao DateTime @default(now()) @map("dt_atribuicao")
+  idTurma      Int      @map("id_turma")
+
+  turma Turma @relation(fields: [idTurma], references: [idTurma])
+
+  @@map("PONTUACAO_TURMA")
+}
+
+model HistoricoSenha {
+  idHistorico Int      @id @default(autoincrement()) @map("id_historico")
+  senhaHash   String   @map("senha_hash") @db.VarChar(255)
+  dtAlteracao DateTime @default(now()) @map("dt_alteracao")
+  idUsuario   Int      @map("id_usuario")
+
+  usuario Usuario @relation(fields: [idUsuario], references: [idUsuario])
+
+  @@map("HISTORICO_SENHA")
+}
