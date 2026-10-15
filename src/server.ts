@@ -1,17 +1,21 @@
 import express from 'express';
-import routes from './routes'; 
+// @ts-ignore
+import 'express-async-errors';
+import cors from 'cors';
+import routes from './routes'; // Importa automaticamente o index.ts
+import { errorMiddleware } from './middlewares/errorMiddleware';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
+app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.json({ message: 'API SENAI Flow rodando com sucesso!' });
-});
-
+// Rotas principais registradas na raiz (sem o prefixo /api)
 app.use(routes);
 
+app.use(errorMiddleware);
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 SENAI Flow Backend rodando na porta ${PORT}`);
 });

@@ -5,49 +5,39 @@ const usuarioService = new UsuarioService();
 
 export class UsuarioController {
   async listar(req: Request, res: Response) {
-    try {
-      const usuarios = await usuarioService.listar();
-      return res.status(200).json(usuarios);
-    } catch (error: any) {
-      return res.status(500).json({ error: error.message });
-    }
+    const usuarios = await usuarioService.listar();
+    return res.status(200).json(usuarios);
   }
 
   async login(req: Request, res: Response) {
-    try {
-      const { email, senha } = req.body;
+    const { email, senha } = req.body;
 
-      if (!email || !senha) {
-        return res.status(400).json({ message: 'E-mail e senha são obrigatórios' });
-      }
-
-      const resultado = await usuarioService.autenticar(email, senha);
-      return res.status(200).json(resultado);
-    } catch (error: any) {
-      return res.status(401).json({ error: error.message });
+    if (!email || !senha) {
+      return res.status(400).json({ message: 'E-mail e senha são obrigatórios' });
     }
+
+    const resultado = await usuarioService.autenticar(email, senha);
+    return res.status(200).json(resultado);
   }
 
   async alterarSenha(req: Request, res: Response) {
-    try {
-      const { id_usuario, senha_atual, nova_senha } = req.body;
+  // Pega exclusivamente o ID injetado pelo middleware isAuthenticated
+  const userId = (req as any).user_id; 
+  const { senha_atual, nova_senha } = req.body;
 
-      if (!id_usuario || !senha_atual || !nova_senha) {
-        return res.status(400).json({ message: 'Campos obrigatórios ausentes' });
-      }
-
-      const usuarioAtualizado = await usuarioService.alterarSenhaProvisoria(
-        Number(id_usuario),
-        senha_atual,
-        nova_senha
-      );
-
-      return res.status(200).json({
-        message: 'Senha alterada com sucesso!',
-        usuario: usuarioAtualizado,
-      });
-    } catch (error: any) {
-      return res.status(400).json({ error: error.message });
-    }
+  if (!senha_atual || !nova_senha) {
+    return res.status(400).json({ message: 'Senha atual e nova senha são obrigatórias' });
   }
+
+  const usuarioAtualizado = await usuarioService.alterarSenhaProvisoria(
+    Number(userId),
+    senha_atual,
+    nova_senha
+  );
+
+  return res.status(200).json({
+    message: 'Senha alterada com sucesso!',
+    usuario: usuarioAtualizado,
+  });
+}
 }

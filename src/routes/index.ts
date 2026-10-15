@@ -1,16 +1,22 @@
 import { Router } from 'express';
 import usuarioRoutes from './usuarioRoutes';
 import salaRoutes from './salaRoutes';
+import predioRoutes from './predioRoutes';
+import equipamentoRoutes from './equipamentoRoutes';
+import turmaRoutes from './turmaRoutes';
 import reservaRoutes from './reservaRoutes';
-import { isAuthenticated } from '../middlewares/isAuthenticated';
+import avariaRoutes from './avariaRoutes';
+import comunicadoRoutes from './comunicadoRoutes';
 
 const routes = Router();
 
-// Rota Pública
 routes.use('/usuarios', usuarioRoutes);
-
-// Rotas Protegidas
-routes.use('/salas', isAuthenticated, salaRoutes);
-routes.use('/reservas', isAuthenticated, reservaRoutes);
+routes.use('/salas', salaRoutes);
+routes.use('/predios', predioRoutes);
+routes.use('/equipamentos', equipamentoRoutes);
+routes.use('/turmas', turmaRoutes);
+routes.use('/reservas', reservaRoutes);
+routes.use('/avarias', avariaRoutes);
+routes.use('/comunicados', comunicadoRoutes);
 
 export default routes;

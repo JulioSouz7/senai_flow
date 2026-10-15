@@ -9,7 +9,7 @@ export class ReservaController {
       const reservas = await reservaService.listar();
       return res.status(200).json(reservas);
     } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+      return res.status(error.statusCode || 400).json({ message: error.message });
     }
   }
 
@@ -19,34 +19,55 @@ export class ReservaController {
       const reserva = await reservaService.buscarPorId(Number(id));
       return res.status(200).json(reserva);
     } catch (error: any) {
-      return res.status(404).json({ error: error.message });
+      return res.status(error.statusCode || 400).json({ message: error.message });
     }
   }
 
   async criar(req: Request, res: Response) {
     try {
-      const { id_sala, id_turma, id_docente, data, hora_inicio, hora_fim, tipo } = req.body;
+      const { id_sala, id_turma, tipo, justificativa_urgencia, id_reserva_urgencia } = req.body;
 
-      if (!id_sala || !id_turma || !id_docente || !data || !hora_inicio || !hora_fim) {
-        return res.status(400).json({ message: 'Dados obrigatórios ausentes para criar a reserva.' });
+      if (!id_sala || !id_turma) {
+        return res.status(400).json({
+          message: 'Os campos id_sala e id_turma são obrigatórios.',
+        });
       }
 
       const novaReserva = await reservaService.criar({
         id_sala: Number(id_sala),
         id_turma: Number(id_turma),
-        id_docente: Number(id_docente),
-        data,
-        hora_inicio,
-        hora_fim,
         tipo,
+        justificativa_urgencia,
+        id_reserva_urgencia: id_reserva_urgencia ? Number(id_reserva_urgencia) : undefined,
       });
 
       return res.status(201).json({
-        message: 'Reserva solicitada com sucesso!',
+        message: 'Solicitação de reserva registrada com sucesso!',
         reserva: novaReserva,
       });
     } catch (error: any) {
-      return res.status(400).json({ error: error.message });
+      return res.status(error.statusCode || 400).json({ message: error.message });
+    }
+  }
+
+  async validar(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body; // 'CONFIRMADA' ou 'CANCELADA'
+      const id_admin = (req as any).user?.id;
+
+      if (!status || !['CONFIRMADA', 'CANCELADA'].includes(status)) {
+        return res.status(400).json({ message: "Status inválido. Use 'CONFIRMADA' ou 'CANCELADA'." });
+      }
+
+      const reservaAtualizada = await reservaService.aprovarOuRejeitar(Number(id), Number(id_admin), status);
+
+      return res.status(200).json({
+        message: `Reserva ${status.toLowerCase()} com sucesso!`,
+        reserva: reservaAtualizada,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 400).json({ message: error.message });
     }
   }
 }

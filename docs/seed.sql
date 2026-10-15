@@ -9,7 +9,7 @@ BEGIN;
 -- ============================================================
 -- 1. USUÁRIOS
 -- ============================================================
-
+    
 INSERT INTO "USUARIO"
     (id_usuario, nome, email, senha, senha_alterada, perfil, status)
 VALUES
