@@ -27,16 +27,10 @@ export class AvariaController {
     try {
       const { id_docente, id_sala, id_equipamento, id_reserva, descricao, foto, gravidade } = req.body;
 
-      if (!id_docente || !descricao) {
-        return res.status(400).json({
-          message: 'Os campos id_docente e descricao são obrigatórios.',
-        });
-      }
-
       const novaAvaria = await avariaService.criar({
         id_docente: Number(id_docente),
-        id_sala: id_sala ? Number(id_sala) : undefined,
-        id_equipamento: id_equipamento ? Number(id_equipamento) : undefined,
+        id_sala: Number(id_sala),
+        id_equipamento: Number(id_equipamento),
         id_reserva: id_reserva ? Number(id_reserva) : undefined,
         descricao,
         foto,
@@ -44,7 +38,7 @@ export class AvariaController {
       });
 
       return res.status(201).json({
-        message: 'Relato de avaria cadastrado com sucesso!',
+        message: 'Avaria registrada com sucesso!',
         avaria: novaAvaria,
       });
     } catch (error: any) {
@@ -55,17 +49,31 @@ export class AvariaController {
   async atualizarStatus(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, gravidade } = req.body;
 
-      if (!status) {
-        return res.status(400).json({ message: 'O campo status é obrigatório.' });
-      }
-
-      const avariaAtualizada = await avariaService.atualizarStatus(Number(id), status);
+      const avariaAtualizada = await avariaService.atualizarStatus(
+        Number(id),
+        status,
+        gravidade
+      );
 
       return res.status(200).json({
-        message: 'Status do chamado atualizado com sucesso!',
+        message: 'Status/Gravidade da avaria atualizado com sucesso!',
         avaria: avariaAtualizada,
+      });
+    } catch (error: any) {
+      return res.status(error.statusCode || 400).json({ message: error.message });
+    }
+  }
+
+  async deletar(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const resultado = await avariaService.deletar(Number(id));
+
+      return res.status(200).json({
+        message: 'Avaria removida com sucesso!',
+        avaria: resultado,
       });
     } catch (error: any) {
       return res.status(error.statusCode || 400).json({ message: error.message });

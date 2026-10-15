@@ -7,7 +7,7 @@ export class AvariaService {
     return await prisma.avaria.findMany({
       include: {
         sala: { select: { id_sala: true, nome: true } },
-        equipamento: { select: { id_equipamento: true, nome: true, nif: true } },
+        equipamento: { select: { id_equipamento: true, nome: true } },
         docente: {
           include: {
             usuario: { select: { id_usuario: true, nome: true, email: true } },
@@ -26,17 +26,13 @@ export class AvariaService {
       include: {
         sala: true,
         equipamento: true,
-        docente: {
-          include: {
-            usuario: { select: { id_usuario: true, nome: true, email: true } },
-          },
-        },
+        docente: true,
         reserva: true,
       },
     });
 
     if (!avaria) {
-      throw new AppError('Relato de avaria não encontrado.', 404);
+      throw new AppError('Registro de avaria não encontrado.', 404);
     }
 
     return avaria;
@@ -44,39 +40,28 @@ export class AvariaService {
 
   async criar(dados: {
     id_docente: number;
-    id_sala?: number;
-    id_equipamento?: number;
+    id_sala: number;
+    id_equipamento: number;
     id_reserva?: number;
     descricao: string;
     foto?: string;
     gravidade?: string;
   }) {
-    if (!dados.id_sala && !dados.id_equipamento) {
-      throw new AppError('Defina ao menos uma sala ou equipamento para relatar a avaria.', 400);
+    // Regra de Negócio RN18: Descrição com no mínimo 30 caracteres
+    if (!dados.descricao || dados.descricao.trim().length < 30) {
+      throw new AppError('A descrição da avaria deve possuir no mínimo 30 caracteres.', 400);
     }
 
-    // 1. Validar docente
-    const docente = await prisma.docente.findUnique({ where: { id_docente: dados.id_docente } });
-    if (!docente) throw new AppError('Docente relator não encontrado.', 404);
-
-    // 2. Validar sala (se informada)
-    if (dados.id_sala) {
-      const sala = await prisma.sala.findUnique({ where: { id_sala: dados.id_sala } });
-      if (!sala) throw new AppError('Sala informada não existe.', 404);
-    }
-
-    // 3. Validar equipamento (se informado)
-    if (dados.id_equipamento) {
-      const equip = await prisma.equipamento.findUnique({ where: { id_equipamento: dados.id_equipamento } });
-      if (!equip) throw new AppError('Equipamento informado não existe.', 404);
+    if (!dados.id_docente || !dados.id_sala || !dados.id_equipamento) {
+      throw new AppError('Docente, sala e equipamento são obrigatórios.', 400);
     }
 
     try {
       return await prisma.avaria.create({
         data: {
           id_docente: dados.id_docente,
-          id_sala: (dados.id_sala ?? null) as any,
-          id_equipamento: (dados.id_equipamento ?? null) as any,
+          id_sala: dados.id_sala,
+          id_equipamento: dados.id_equipamento,
           id_reserva: (dados.id_reserva ?? null) as any,
           descricao: dados.descricao,
           foto: dados.foto || '',
@@ -84,31 +69,42 @@ export class AvariaService {
           status: 'EM_ANALISE',
         },
         include: {
-          sala: true,
-          equipamento: true,
+          sala: { select: { nome: true } },
+          equipamento: { select: { nome: true } },
         },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-        throw new AppError('Erro ao vincular chaves estrangeiras na avaria.', 400);
+        throw new AppError('Erro ao associar chaves estrangeiras na avaria.', 400);
       }
       throw error;
     }
   }
 
-  async atualizarStatus(id_avaria: number, status: string) {
+  async atualizarStatus(id_avaria: number, status: string, gravidade?: string) {
     if (isNaN(id_avaria)) throw new AppError('ID de avaria inválido.', 400);
 
     const avaria = await prisma.avaria.findUnique({ where: { id_avaria } });
-    if (!avaria) throw new AppError('Relato de avaria não encontrado.', 404);
+    if (!avaria) throw new AppError('Registro de avaria não encontrado.', 404);
 
     return await prisma.avaria.update({
       where: { id_avaria },
-      data: { status },
-      include: {
-        sala: true,
-        equipamento: true,
+      data: {
+        status: status || avaria.status,
+        gravidade: gravidade || avaria.gravidade,
       },
+    });
+  }
+
+  async deletar(id_avaria: number) {
+    if (isNaN(id_avaria)) throw new AppError('ID de avaria inválido.', 400);
+
+    const avaria = await prisma.avaria.findUnique({ where: { id_avaria } });
+    if (!avaria) throw new AppError('Registro de avaria não encontrado.', 404);
+
+    return await prisma.avaria.delete({
+      where: { id_avaria },
+      select: { id_avaria: true, descricao: true },
     });
   }
 }
