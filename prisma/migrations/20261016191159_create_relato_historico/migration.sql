@@ -1,0 +1,37 @@
+/*
+  Warnings:
+
+  - You are about to drop the `CHAMADO_HISTORICO` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- DropForeignKey
+ALTER TABLE "CHAMADO_HISTORICO" DROP CONSTRAINT "CHAMADO_HISTORICO_id_admin_status_fkey";
+
+-- DropForeignKey
+ALTER TABLE "CHAMADO_HISTORICO" DROP CONSTRAINT "CHAMADO_HISTORICO_id_chamado_fkey";
+
+-- AlterTable
+ALTER TABLE "ITEM_SOLICITACAO" ALTER COLUMN "quantidade" SET DEFAULT 1;
+
+-- AlterTable
+ALTER TABLE "SOLICITACAO_EQUIPAMENTO" ALTER COLUMN "status" SET DEFAULT 'EM ANÁLISE';
+
+-- DropTable
+DROP TABLE "CHAMADO_HISTORICO";
+
+-- CreateTable
+CREATE TABLE "RELATO_HISTORICO" (
+    "id_historico" SERIAL NOT NULL,
+    "id_relato" INTEGER NOT NULL,
+    "id_admin_status" INTEGER NOT NULL,
+    "status" VARCHAR(20) NOT NULL DEFAULT 'ABERTO',
+    "dt_registro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RELATO_HISTORICO_pkey" PRIMARY KEY ("id_historico")
+);
+
+-- AddForeignKey
+ALTER TABLE "RELATO_HISTORICO" ADD CONSTRAINT "RELATO_HISTORICO_id_relato_fkey" FOREIGN KEY ("id_relato") REFERENCES "RELATOS_SUGESTOES"("id_relato") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RELATO_HISTORICO" ADD CONSTRAINT "RELATO_HISTORICO_id_admin_status_fkey" FOREIGN KEY ("id_admin_status") REFERENCES "ADMINISTRADOR"("id_adm") ON DELETE RESTRICT ON UPDATE CASCADE;

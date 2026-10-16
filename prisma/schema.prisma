@@ -10,19 +10,19 @@ datasource db {
 // ========================= 1. USUÁRIOS & PERFIS =========================
 
 model Usuario {
-  id_usuario     Int      @id @default(autoincrement())
-  nome           String   @db.VarChar(150)
-  email          String   @unique @db.VarChar(150)
-  senha          String   @db.VarChar(100)
-  senha_alterada Boolean  @default(false)
-  perfil         String   @db.VarChar(30) // ALUNO | DOCENTE | ADMINISTRADOR
-  status         String   @default("ATIVO") @db.VarChar(30) // ATIVO | BLOQUEADO
+  id_usuario     Int     @id @default(autoincrement())
+  nome           String  @db.VarChar(150)
+  email          String  @unique @db.VarChar(150)
+  senha          String  @db.VarChar(100)
+  senha_alterada Boolean @default(false)
+  perfil         String  @db.VarChar(30) // ALUNO | DOCENTE | ADMINISTRADOR
+  status         String  @default("ATIVO") @db.VarChar(30) // ATIVO | BLOQUEADO
 
-  docente        Docente?
-  aluno          Aluno?
-  administrador  Administrador?
-  relatos        RelatoSugestao[]
-  chamados       ChamadoSuporte[]
+  docente       Docente?
+  aluno         Aluno?
+  administrador Administrador?
+  relatos       RelatoSugestao[]
+  chamados      ChamadoSuporte[]
 
   @@map("USUARIO")
 }
@@ -32,12 +32,12 @@ model Docente {
   id_usuario Int    @unique
   nif        String @unique @db.VarChar(30) // ver observação sobre ambiguidade de "nif" na resposta
 
-  usuario           Usuario            @relation(fields: [id_usuario], references: [id_usuario])
-  docente_turma     DocenteTurma[]
-  reserva_docente   ReservaDocente[]
-  trocas_sugeridas  TrocaSala[]
-  solicitacoes      SolicitacaoEquipamento[]
-  avarias           Avaria[]
+  usuario          Usuario                  @relation(fields: [id_usuario], references: [id_usuario])
+  docente_turma    DocenteTurma[]
+  reserva_docente  ReservaDocente[]
+  trocas_sugeridas TrocaSala[]
+  solicitacoes     SolicitacaoEquipamento[]
+  avarias          Avaria[]
 
   @@map("DOCENTE")
 }
@@ -59,15 +59,15 @@ model Administrador {
   id_adm     Int @id @default(autoincrement())
   id_usuario Int @unique
 
-  usuario              Usuario                @relation(fields: [id_usuario], references: [id_usuario])
-  areas_risco          AreaRisco[]
-  reservas_validadas   Reserva[]
-  trocas_validadas      TrocaSala[]
+  usuario                 Usuario                  @relation(fields: [id_usuario], references: [id_usuario])
+  areas_risco             AreaRisco[]
+  reservas_validadas      Reserva[]
+  trocas_validadas        TrocaSala[]
   solicitacoes_analisadas SolicitacaoEquipamento[]
-  comunicados          Comunicado[]
-  relatos_analisados   RelatoSugestao[]
-  chamados_responsavel ChamadoSuporte[]
-  chamados_historico   ChamadoHistorico[]
+  comunicados             Comunicado[]
+  relatos_analisados      RelatoSugestao[]
+  chamados_responsavel    ChamadoSuporte[]
+  relato_historico        RelatoHistorico[]
 
   @@map("ADMINISTRADOR")
 }
@@ -85,33 +85,33 @@ model Predio {
 }
 
 model Sala {
-  id_sala     Int     @id @default(autoincrement())
-  id_predio   Int
-  nome        String  @db.VarChar(50)
-  capacidade  Int
-  ativa       Boolean @default(true)
-  qr_code     String  @unique @db.VarChar(255)
+  id_sala    Int     @id @default(autoincrement())
+  id_predio  Int
+  nome       String  @db.VarChar(50)
+  capacidade Int
+  ativa      Boolean @default(true)
+  qr_code    String  @unique @db.VarChar(255)
 
-  predio           Predio             @relation(fields: [id_predio], references: [id_predio])
+  predio           Predio            @relation(fields: [id_predio], references: [id_predio])
   sala_equipamento SalaEquipamento[]
   reservas         Reserva[]
   avarias          Avaria[]
-  trocas_origem    TrocaSala[] @relation("TrocaSalaOrigem")
-  trocas_destino   TrocaSala[] @relation("TrocaSalaDestino")
+  trocas_origem    TrocaSala[]       @relation("TrocaSalaOrigem")
+  trocas_destino   TrocaSala[]       @relation("TrocaSalaDestino")
 
   @@map("SALA")
 }
 
 model Equipamento {
-  id_equipamento Int    @id @default(autoincrement())
-  nome           String @db.VarChar(100)
+  id_equipamento Int     @id @default(autoincrement())
+  nome           String  @db.VarChar(100)
   descricao      String? @db.VarChar(255)
-  nif            String @unique @db.VarChar(30) // código de barras físico do equipamento
-  status         String @default("DISPONIVEL") @db.VarChar(20) // DISPONIVEL | MANUTENCAO | INATIVO
+  nif            String  @unique @db.VarChar(30) // código de barras físico do equipamento
+  status         String  @default("DISPONIVEL") @db.VarChar(20) // DISPONIVEL | MANUTENCAO | INATIVO
 
-  sala_equipamento SalaEquipamento[]
+  sala_equipamento  SalaEquipamento[]
   itens_solicitacao ItemSolicitacao[]
-  avarias          Avaria[]
+  avarias           Avaria[]
 
   @@map("EQUIPAMENTO")
 }
@@ -152,11 +152,11 @@ model Turma {
   qtd_alunos            Int    @default(0)
   carga_horaria_semanal Int
 
-  alunos         Aluno[]
-  docente_turma  DocenteTurma[]
-  reservas       Reserva[]
-  pontuacoes     Pontuacao[]
-  comunicados    Comunicado[]
+  alunos        Aluno[]
+  docente_turma DocenteTurma[]
+  reservas      Reserva[]
+  pontuacoes    Pontuacao[]
+  comunicados   Comunicado[]
 
   @@map("TURMA")
 }
@@ -175,33 +175,33 @@ model DocenteTurma {
 // ===================== 4. RESERVAS & AGENDAMENTOS =====================
 
 model Reserva {
-  id_reserva              Int       @id @default(autoincrement())
-  id_sala                 Int
-  id_turma                Int
-  id_admin                Int?
-  tipo                    String    @default("NORMAL") @db.VarChar(50) // NORMAL | URGENCIA
-  status                  String    @default("PENDENTE") @db.VarChar(50) // PENDENTE | CONFIRMADA | RECUSADA | CANCELADA | ENCERRADA
-  dt_solicitacao          DateTime  @default(now())
-  dt_validacao            DateTime?
-  justificativa_urgencia  String?   @db.VarChar(255)
-  id_reserva_urgencia     Int?
-  dt_encerramento         DateTime?
-  sala_em_ordem           Boolean?
-  obs_encerramento        String?   @db.VarChar(255)
+  id_reserva             Int       @id @default(autoincrement())
+  id_sala                Int
+  id_turma               Int
+  id_admin               Int?
+  tipo                   String    @default("NORMAL") @db.VarChar(50) // NORMAL | URGENCIA
+  status                 String    @default("PENDENTE") @db.VarChar(50) // PENDENTE | CONFIRMADA | RECUSADA | CANCELADA | ENCERRADA
+  dt_solicitacao         DateTime  @default(now())
+  dt_validacao           DateTime?
+  justificativa_urgencia String?   @db.VarChar(255)
+  id_reserva_urgencia    Int?
+  dt_encerramento        DateTime?
+  sala_em_ordem          Boolean?
+  obs_encerramento       String?   @db.VarChar(255)
 
-  sala              Sala      @relation(fields: [id_sala], references: [id_sala])
-  turma             Turma     @relation(fields: [id_turma], references: [id_turma])
+  sala              Sala           @relation(fields: [id_sala], references: [id_sala])
+  turma             Turma          @relation(fields: [id_turma], references: [id_turma])
   administrador     Administrador? @relation(fields: [id_admin], references: [id_adm])
-  reserva_urgencia  Reserva?  @relation("ReservaUrgencia", fields: [id_reserva_urgencia], references: [id_reserva])
-  reservas_afetadas Reserva[] @relation("ReservaUrgencia")
+  reserva_urgencia  Reserva?       @relation("ReservaUrgencia", fields: [id_reserva_urgencia], references: [id_reserva])
+  reservas_afetadas Reserva[]      @relation("ReservaUrgencia")
 
-  reserva_docente       ReservaDocente[]
-  reserva_horario       ReservaHorario[]
-  trocas_sala           TrocaSala[]
-  pontuacao             Pontuacao?
-  solicitacoes_equip    SolicitacaoEquipamento[]
-  avarias               Avaria[]
-  comunicados           Comunicado[]
+  reserva_docente    ReservaDocente[]
+  reserva_horario    ReservaHorario[]
+  trocas_sala        TrocaSala[]
+  pontuacao          Pontuacao?
+  solicitacoes_equip SolicitacaoEquipamento[]
+  avarias            Avaria[]
+  comunicados        Comunicado[]
 
   @@map("RESERVA")
 }
@@ -219,9 +219,9 @@ model ReservaDocente {
 }
 
 model ReservaHorario {
-  id_horario Int      @id @default(autoincrement())
-  id_reserva Int
-  data       DateTime @db.Date
+  id_horario  Int      @id @default(autoincrement())
+  id_reserva  Int
+  data        DateTime @db.Date
   hora_inicio DateTime @db.Time()
   hora_fim    DateTime @db.Time()
 
@@ -231,15 +231,15 @@ model ReservaHorario {
 }
 
 model TrocaSala {
-  id_troca              Int      @id @default(autoincrement())
-  id_reserva            Int
-  id_sala_origem        Int
-  id_sala_destino       Int
+  id_troca               Int      @id @default(autoincrement())
+  id_reserva             Int
+  id_sala_origem         Int
+  id_sala_destino        Int
   id_docente_solicitante Int?
-  id_coordenador        Int?
-  status                String   @default("PENDENTE") @db.VarChar(30) // PENDENTE | ACEITA | RECUSADA
-  motivo                String   @db.VarChar(255)
-  dt_troca              DateTime @default(now())
+  id_coordenador         Int?
+  status                 String   @default("PENDENTE") @db.VarChar(30) // PENDENTE | ACEITA | RECUSADA
+  motivo                 String   @db.VarChar(255)
+  dt_troca               DateTime @default(now())
 
   reserva             Reserva        @relation(fields: [id_reserva], references: [id_reserva])
   sala_origem         Sala           @relation("TrocaSalaOrigem", fields: [id_sala_origem], references: [id_sala])
@@ -267,17 +267,18 @@ model Pontuacao {
 
 model SolicitacaoEquipamento {
   id_solicitacao   Int       @id @default(autoincrement())
-  id_reserva       Int
   id_docente       Int
   id_admin_analise Int?
-  status           String    @default("PENDENTE") @db.VarChar(50) // PENDENTE | APROVADA | RECUSADA
+  id_reserva       Int
+  status           String    @default("EM ANÁLISE") @db.VarChar(50)
   dt_solicitacao   DateTime  @default(now())
   dt_resposta      DateTime?
 
-  reserva        Reserva        @relation(fields: [id_reserva], references: [id_reserva])
-  docente        Docente        @relation(fields: [id_docente], references: [id_docente])
-  admin_analise  Administrador? @relation(fields: [id_admin_analise], references: [id_adm])
-  itens          ItemSolicitacao[]
+  docente       Docente        @relation(fields: [id_docente], references: [id_docente])
+  administrador Administrador? @relation(fields: [id_admin_analise], references: [id_adm])
+
+  itens   ItemSolicitacao[]
+  reserva Reserva           @relation(fields: [id_reserva], references: [id_reserva])
 
   @@map("SOLICITACAO_EQUIPAMENTO")
 }
@@ -286,7 +287,7 @@ model ItemSolicitacao {
   id_item_solicitacao Int @id @default(autoincrement())
   id_solicitacao      Int
   id_equipamento      Int
-  quantidade          Int
+  quantidade          Int @default(1)
 
   solicitacao SolicitacaoEquipamento @relation(fields: [id_solicitacao], references: [id_solicitacao])
   equipamento Equipamento            @relation(fields: [id_equipamento], references: [id_equipamento])
@@ -338,19 +339,33 @@ model Comunicado {
 model RelatoSugestao {
   id_relato               Int       @id @default(autoincrement())
   id_usuario              Int
-  tipo                    String    @db.VarChar(20) // RECLAMACAO | SUGESTAO | APONTAMENTO
+  tipo                    String    @db.VarChar(20) // RECLAMACAO | SUGESTAO
   descricao               String    @db.VarChar(255)
   dt_envio                DateTime  @default(now())
   prazo_resposta          DateTime? @db.Date
-  status                  String    @default("PENDENTE") @db.VarChar(20) // PENDENTE | LIDO | ARQUIVADO
+  status                  String    @default("PENDENTE") @db.VarChar(30) // ENVIADO | LIDO | ENCAMINHADO AO COPORATIVO
   id_admin                Int?
   resposta                String?   @db.VarChar(255)
   encaminhada_corporativo Boolean   @default(false)
 
-  usuario Usuario        @relation(fields: [id_usuario], references: [id_usuario])
-  admin   Administrador? @relation(fields: [id_admin], references: [id_adm])
+  usuario         Usuario           @relation(fields: [id_usuario], references: [id_usuario])
+  admin           Administrador?    @relation(fields: [id_admin], references: [id_adm])
+  RelatoHistorico RelatoHistorico[]
 
   @@map("RELATOS_SUGESTOES")
+}
+
+model RelatoHistorico {
+  id_historico    Int      @id @default(autoincrement())
+  id_relato       Int
+  id_admin_status Int
+  status          String   @default("ABERTO") @db.VarChar(20)
+  dt_registro     DateTime @default(now())
+
+  relato       RelatoSugestao @relation(fields: [id_relato], references: [id_relato])
+  admin_status Administrador  @relation(fields: [id_admin_status], references: [id_adm])
+
+  @@map("RELATO_HISTORICO")
 }
 
 model ChamadoSuporte {
@@ -362,24 +377,10 @@ model ChamadoSuporte {
   status        String   @default("ABERTO") @db.VarChar(20) // ABERTO | EM_ANDAMENTO | RESOLVIDO
   dt_abertura   DateTime @default(now())
 
-  usuario    Usuario            @relation(fields: [id_usuario], references: [id_usuario])
-  admin_resp Administrador?     @relation(fields: [id_admin_resp], references: [id_adm])
-  historico  ChamadoHistorico[]
+  usuario    Usuario        @relation(fields: [id_usuario], references: [id_usuario])
+  admin_resp Administrador? @relation(fields: [id_admin_resp], references: [id_adm])
 
   @@map("CHAMADO_SUPORTE")
-}
-
-model ChamadoHistorico {
-  id_historico    Int      @id @default(autoincrement())
-  id_chamado      Int
-  id_admin_status Int
-  observacao      String?  @db.VarChar(255)
-  dt_registro     DateTime @default(now())
-
-  chamado      ChamadoSuporte @relation(fields: [id_chamado], references: [id_chamado])
-  admin_status Administrador  @relation(fields: [id_admin_status], references: [id_adm])
-
-  @@map("CHAMADO_HISTORICO")
 }
 
 model Faq {

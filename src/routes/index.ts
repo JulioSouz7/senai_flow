@@ -9,9 +9,11 @@ import avariaRoutes from './avariaRoutes';
 import comunicadoRoutes from './comunicadoRoutes';
 import trocaSalaRoutes from './trocaSalaRoutes';
 import dashboardRoutes from './dashboardRoutes';
-import sugestaoRoutes from './sugestaoRoutes';
+import { relatoRoutes } from './relatoSugestaoRoutes';
 import reservaDetalhesRoutes from './reservaDetalhesRoutes';
-import pontuacaoRoutes from './pontuacaoRoutes';
+import solicitacaoRoutes from './solicitacaoEquipamentoRoutes';
+import usuarioPerfilRoutes from './usuarioPerfilRoutes';
+// import pontuacaoRoutes from './pontuacaoRoutes';
 
 const routes = Router();
 
@@ -25,8 +27,10 @@ routes.use('/avarias', avariaRoutes);
 routes.use('/comunicados', comunicadoRoutes);
 routes.use('/trocas-sala', trocaSalaRoutes);
 routes.use('/dashboard', dashboardRoutes);
-routes.use('/sugestoes', sugestaoRoutes);
+routes.use('/relatos-sugestoes', relatoRoutes);
 routes.use('/reservas-detalhes', reservaDetalhesRoutes);
-routes.use('/pontuacao', pontuacaoRoutes);
+routes.use('/solicitacoes-equipamentos', solicitacaoRoutes);
+routes.use('/registro', usuarioPerfilRoutes);
+// routes.use('/pontuacao', pontuacaoRoutes);
 
 export default routes;

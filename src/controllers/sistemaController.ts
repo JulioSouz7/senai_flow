@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AvariaService } from '../services/avariaService';
 import { SuporteService } from '../services/suporteService';
-import { SugestaoService } from '../services/sugestaoService';
+import { SugestaoService } from '../services/relatoSugestaoService';
 import { ComunicadoService } from '../services/comunicadoService';
 
 const avariaService = new AvariaService();
