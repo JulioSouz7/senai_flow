@@ -1,25 +1,23 @@
 import { Router } from 'express';
-import { ReservaController } from '../controllers/reservaController';
-import { isAuthenticated } from '../middlewares/isAuthenticated';
-import { checkRole } from '../middlewares/checkRole';
+import { reservaController } from '../controllers/reservaController';
+import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAdmin } from '../middlewares/ensureAdmin';
 
 const reservaRoutes = Router();
-const reservaController = new ReservaController();
 
-reservaRoutes.use(isAuthenticated);
+// Exige autenticação JWT para todas as rotas de reserva
+reservaRoutes.use(ensureAuthenticated);
 
+// Rotas comuns (Docentes e Administradores)
 reservaRoutes.get('/', (req, res) => reservaController.listar(req, res));
-reservaRoutes.get('/:id', (req, res) => reservaController.buscarPorId(req, res));
-reservaRoutes.post('/', (req, res) => reservaController.criar(req, res));
+reservaRoutes.post('/', (req, res) => reservaController.criarReserva(req, res));
+reservaRoutes.post('/urgencia', (req, res) => reservaController.solicitarUrgencia(req, res));
+reservaRoutes.patch('/:id/cancelar', (req, res) => reservaController.cancelar(req, res));
+reservaRoutes.patch('/:id/encerrar', (req, res) => reservaController.encerrar(req, res));
 
-// Validação/Aprovação geral (ADMINISTRADOR)
-reservaRoutes.patch('/:id/validar', checkRole(['ADMINISTRADOR']), (req, res) => reservaController.validar(req, res));
+// Rotas restritas para Administradores
+reservaRoutes.get('/pendentes', ensureAdmin, (req, res) => reservaController.listarPendentes(req, res));
+reservaRoutes.patch('/:id/decidir', ensureAdmin, (req, res) => reservaController.decidir(req, res));
+reservaRoutes.patch('/:id/decidir-urgencia', ensureAdmin, (req, res) => reservaController.decidirUrgencia(req, res));
 
-// Rota de cancelamento
-reservaRoutes.patch('/:id/cancelar', (req, res) => {
-  // Define o status como CANCELADA e chama o método validar do controller
-  req.body.status = 'CANCELADA';
-  return reservaController.validar(req, res);
-});
-
-export default reservaRoutes;
+export { reservaRoutes };

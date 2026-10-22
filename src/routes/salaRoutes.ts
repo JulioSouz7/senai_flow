@@ -1,21 +1,22 @@
 import { Router } from 'express';
-import { SalaController } from '../controllers/salaController';
-import { isAuthenticated } from '../middlewares/isAuthenticated';
-import { checkRole } from '../middlewares/checkRole';
+import { salaController } from '../controllers/salaController';
+import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAdmin } from '../middlewares/ensureAdmin';
 
 const salaRoutes = Router();
-const salaController = new SalaController();
 
-salaRoutes.use(isAuthenticated);
+// Exige autenticação em todas as rotas
+salaRoutes.use(ensureAuthenticated);
 
-// Consultas gerais (Qualquer usuário autenticado)
-salaRoutes.get('/', (req, res) => salaController.listar(req, res));
-salaRoutes.get('/:id', (req, res) => salaController.buscarPorId(req, res));
+// Rotas de LEITURA (Acessíveis por qualquer perfil autenticado)
+// ✅ Apenas UMA rota GET '/' apontando para a filtragem dinamica/listagem
+salaRoutes.get('/', (req, res) => salaController.filtrar(req, res));
+salaRoutes.get('/:id', salaController.buscarPorId);
 
-// Rotas exclusivas de gestão (Apenas ADMINISTRADOR)
-salaRoutes.post('/', checkRole(['ADMINISTRADOR']), (req, res) => salaController.criar(req, res));
-salaRoutes.put('/:id', checkRole(['ADMINISTRADOR']), (req, res) => salaController.atualizar(req, res));
-salaRoutes.patch('/:id/desativar', checkRole(['ADMINISTRADOR']), (req, res) => salaController.desativar(req, res));
-salaRoutes.patch('/:id/reativar', checkRole(['ADMINISTRADOR']), (req, res) => salaController.reativar(req, res));
+// Rotas de ESCRITA (Restritas EXCLUSIVAMENTE para ADMINISTRADOR)
+salaRoutes.post('/', ensureAdmin, salaController.criar);
+salaRoutes.put('/:id', ensureAdmin, salaController.atualizar);
+salaRoutes.patch('/:id/desativar', ensureAdmin, salaController.desativar);
+salaRoutes.patch('/:id/reativar', ensureAdmin, salaController.reativar);
 
-export default salaRoutes;
+export { salaRoutes };
