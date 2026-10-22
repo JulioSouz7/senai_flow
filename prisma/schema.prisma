@@ -58,6 +58,7 @@ model Aluno {
 model Administrador {
   id_adm     Int @id @default(autoincrement())
   id_usuario Int @unique
+  nif        String  @unique
 
   usuario                 Usuario                  @relation(fields: [id_usuario], references: [id_usuario])
   areas_risco             AreaRisco[]
@@ -98,6 +99,7 @@ model Sala {
   avarias          Avaria[]
   trocas_origem    TrocaSala[]       @relation("TrocaSalaOrigem")
   trocas_destino   TrocaSala[]       @relation("TrocaSalaDestino")
+  horarios_disponiveis SalaHorario[]
 
   @@map("SALA")
 }
@@ -128,19 +130,22 @@ model SalaEquipamento {
   @@map("SALA_EQUIPAMENTO")
 }
 
+
 model AreaRisco {
-  id_area              Int    @id @default(autoincrement())
+  id_area              Int           @id @default(autoincrement())
   id_predio            Int
   id_adm               Int
-  nome                 String @db.VarChar(100)
-  tipo                 String @db.VarChar(50)
-  orientacao_seguranca String @db.VarChar(255)
+  nome                 String        @db.VarChar(100)
+  tipo                 String        @db.VarChar(50)
+  orientacao_seguranca String        @db.Text
   andar                Int
+  imagem_url           String?       @db.VarChar(255)
+  status               String        @default("ATIVO") @db.VarChar(20)
 
-  predio        Predio        @relation(fields: [id_predio], references: [id_predio])
-  administrador Administrador @relation(fields: [id_adm], references: [id_adm])
+  predio               Predio        @relation(fields: [id_predio], references: [id_predio])
+  administrador        Administrador @relation(fields: [id_adm], references: [id_adm])
 
-  @@map("AREA_RISCO")
+  @@map("AREA_RISCO") // <-- Garante que o Prisma aponte para a tabela física AREA_RISCO
 }
 
 // ========================= 3. GESTÃO ACADÊMICA =========================
@@ -187,6 +192,7 @@ model Reserva {
   id_reserva_urgencia    Int?
   dt_encerramento        DateTime?
   sala_em_ordem          Boolean?
+  houve_avaria          Boolean?
   obs_encerramento       String?   @db.VarChar(255)
 
   sala              Sala           @relation(fields: [id_sala], references: [id_sala])
@@ -218,15 +224,42 @@ model ReservaDocente {
   @@map("RESERVA_DOCENTE")
 }
 
+model Horario {
+  id_horario  Int           @id @default(autoincrement())
+  hora_inicio String        @db.VarChar(5) // Ex: "07:30"
+  hora_fim    String        @db.VarChar(5) // Ex: "09:10"
+  
+  sala_horarios SalaHorario[]
+
+  @@map("HORARIO")
+}
+
+model SalaHorario {
+  id_sala_horario Int     @id @default(autoincrement())
+  id_sala         Int
+  id_horario       Int
+  dia_semana      Int     // 1=Segunda, 2=Terça, ..., 6=Sábado (ou String "SEGUNDA")
+  ativo           Boolean @default(true)
+
+  sala            Sala    @relation(fields: [id_sala], references: [id_sala])
+  horario         Horario @relation(fields: [id_horario], references: [id_horario])
+  
+  reserva_horarios ReservaHorario[]
+
+  @@unique([id_sala, id_horario, dia_semana]) // Impede duplicar o mesmo horário no mesmo dia para a sala
+  @@map("SALA_HORARIO")
+}
+
 model ReservaHorario {
-  id_horario  Int      @id @default(autoincrement())
-  id_reserva  Int
-  data        DateTime @db.Date
-  hora_inicio DateTime @db.Time()
-  hora_fim    DateTime @db.Time()
+  id_reserva_horario Int      @id @default(autoincrement())
+  id_reserva         Int
+  id_sala_horario    Int
+  dt_reserva         DateTime @db.Date // Data específica do agendamento (Ex: 2026-03-25)
 
-  reserva Reserva @relation(fields: [id_reserva], references: [id_reserva])
+  reserva            Reserva     @relation(fields: [id_reserva], references: [id_reserva])
+  sala_horario       SalaHorario @relation(fields: [id_sala_horario], references: [id_sala_horario])
 
+  @@unique([id_sala_horario, dt_reserva]) // Garante no banco que o mesmo horário da sala não é reservado duas vezes no mesmo dia!
   @@map("RESERVA_HORARIO")
 }
 

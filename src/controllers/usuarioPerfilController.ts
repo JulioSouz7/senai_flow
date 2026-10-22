@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { UsuarioPerfilService } from '../services/usuarioPerfilService';
+import { AppError } from '../errors/AppError';
+
 
 const usuarioPerfilService = new UsuarioPerfilService();
 
@@ -68,5 +70,36 @@ export class UsuarioPerfilController {
         message: error.message || 'Erro ao cadastrar docente.',
       });
     }
+  }
+
+  // Cadastrar Administrador
+  async criarAdministrador(req: Request, res: Response) {
+    const { nome, email, senha, nif } = req.body;
+
+    // Validações no Controller com negações
+    if (!nome || typeof nome !== 'string' || !nome.trim()) {
+      throw new AppError('O campo nome é obrigatório.', 400);
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      throw new AppError('O campo e-mail é obrigatório.', 400);
+    }
+
+    if (!senha || typeof senha !== 'string' || !senha.trim()) {
+      throw new AppError('O campo senha é obrigatório.', 400);
+    }
+
+    if (!nif || typeof nif !== 'string' || !nif.trim()) {
+      throw new AppError('O campo NIF é obrigatório para cadastrar um administrador.', 400);
+    }
+
+    const administrador = await usuarioPerfilService.criarAdministrador({
+      nome: nome.trim(),
+      email: email.trim().toLowerCase(),
+      senha,
+      nif: nif.trim(),
+    });
+
+    return res.status(201).json(administrador);
   }
 }

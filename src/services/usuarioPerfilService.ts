@@ -150,4 +150,60 @@ export class UsuarioPerfilService {
       throw error;
     }
   }
+
+  // 4. Cadastrar Administrador (Com NIF obrigatório)
+  async criarAdministrador(dados: {
+    nome: string;
+    email: string;
+    senha: string;
+    nif: string;
+  }) {
+    if (!dados.nome || !dados.email || !dados.senha || !dados.nif) {
+      throw new AppError('Nome, e-mail, senha e NIF são obrigatórios.', 400);
+    }
+
+    const emailExiste = await prisma.usuario.findUnique({ where: { email: dados.email } });
+    if (emailExiste) {
+      throw new AppError('Este e-mail já está cadastrado no sistema.', 409);
+    }
+
+    const passwordHash = await bcrypt.hash(dados.senha, 8);
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const usuario = await tx.usuario.create({
+          data: {
+            nome: dados.nome,
+            email: dados.email,
+            senha: passwordHash,
+            senha_alterada: false,
+            perfil: 'ADMINISTRADOR',
+            status: 'ATIVO',
+          },
+        });
+
+        const administrador = await tx.administrador.create({
+          data: {
+            id_usuario: usuario.id_usuario,
+            nif: dados.nif, // <-- Registra o NIF do Admin
+          },
+        });
+
+        return {
+          id_usuario: usuario.id_usuario,
+          id_adm: administrador.id_adm,
+          nome: usuario.nome,
+          email: usuario.email,
+          perfil: usuario.perfil,
+          status: usuario.status,
+          nif: administrador.nif,
+        };
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError('NIF ou e-mail já cadastrado.', 409);
+      }
+      throw error;
+    }
+  }
 }
