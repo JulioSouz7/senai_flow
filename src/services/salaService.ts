@@ -12,6 +12,7 @@ interface ICriarSalaInput {
   nome: string;
   capacidade: number;
   qr_code: string;
+  foto: string
   horarios: IHorarioInput[];
 }
 
@@ -20,6 +21,7 @@ interface IAtualizarSalaInput {
   nome?: string;
   capacidade?: number;
   qr_code?: string;
+  foto: string
   horarios?: IHorarioInput[];
 }
 
@@ -74,6 +76,7 @@ export class SalaService {
         nome: dados.nome,
         capacidade: dados.capacidade,
         qr_code: dados.qr_code,
+        foto: dados.foto,
         horarios_disponiveis: {
           create: dados.horarios.map((h) => ({
             id_horario: h.id_horario,

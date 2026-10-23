@@ -5,7 +5,7 @@ import predioRoutes from './predioRoutes';
 import equipamentoRoutes from './equipamentoRoutes';
 import turmaRoutes from './turmaRoutes';
 import {reservaRoutes} from './reservaRoutes';
-import avariaRoutes from './avariaRoutes';
+import {avariaRoutes} from './avariaRoutes';
 import comunicadoRoutes from './comunicadoRoutes';
 import trocaSalaRoutes from './trocaSalaRoutes';
 import dashboardRoutes from './dashboardRoutes';

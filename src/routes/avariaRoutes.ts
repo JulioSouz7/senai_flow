@@ -1,21 +1,23 @@
 import { Router } from 'express';
-import { AvariaController } from '../controllers/avariaController';
-import { isAuthenticated } from '../middlewares/isAuthenticated';
-import { checkRole } from '../middlewares/checkRole';
+import { avariaController } from '../controllers/avariaController';
+import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
+import { ensureAdmin } from '../middlewares/ensureAdmin';
 
 const avariaRoutes = Router();
-const avariaController = new AvariaController();
 
-avariaRoutes.use(isAuthenticated);
+// Exige autenticação JWT para todas as rotas do módulo de Avaria
+avariaRoutes.use(ensureAuthenticated);
 
-// Qualquer usuário autenticado pode listar e buscar detalhes de avarias
+// 1. Criar/Registrar Avaria (Permitido para DOCENTE e ADMINISTRADOR com validação de NIF)
+avariaRoutes.post('/', (req, res) => avariaController.registrar(req, res));
+
+// 2. Listar todas as Avarias registradas
 avariaRoutes.get('/', (req, res) => avariaController.listar(req, res));
+
+// 3. Buscar uma Avaria específica por ID
 avariaRoutes.get('/:id', (req, res) => avariaController.buscarPorId(req, res));
 
-// Qualquer usuário autenticado pode abrir relato de avaria
-avariaRoutes.post('/', (req, res) => avariaController.criar(req, res));
+// 4. Intervenção/Atualização do Status da Avaria (Acesso restrito EXCLUSIVAMENTE a ADMINISTRADOR)
+avariaRoutes.patch('/:id/status', ensureAdmin, (req, res) => avariaController.atualizarStatus(req, res));
 
-// Apenas ADMINISTRADOR pode gerenciar/atualizar status e solução do chamado
-avariaRoutes.patch('/:id/status', checkRole(['ADMINISTRADOR']), (req, res) => avariaController.atualizarStatus(req, res));
-
-export default avariaRoutes;
+export { avariaRoutes };

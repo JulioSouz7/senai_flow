@@ -1,82 +1,64 @@
 import { Request, Response } from 'express';
-import { AvariaService } from '../services/avariaService';
-
-const avariaService = new AvariaService();
+import { avariaService } from '../services/avariaService';
+import { AppError } from '../errors/AppError';
 
 export class AvariaController {
-  async listar(req: Request, res: Response) {
-    try {
-      const avarias = await avariaService.listar();
-      return res.status(200).json(avarias);
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({ message: error.message });
+  async registrar(req: Request, res: Response) {
+    const { nif, nif_docente, qr_code_sala, sala, nif_equipamento, descricao, foto, gravidade } = req.body;
+    const userLogado = (req as any).user;
+
+    const id_usuario_logado = userLogado?.id_usuario;
+
+    if (!id_usuario_logado) {
+      throw new AppError('Usuário não autenticado.', 401);
     }
-  }
 
-  async buscarPorId(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const avaria = await avariaService.buscarPorId(Number(id));
-      return res.status(200).json(avaria);
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({ message: error.message });
-    }
-  }
+    const docNif = nif_docente || nif;
+    const codigoSala = qr_code_sala || sala; // Aceita qualquer uma das chaves
 
-  async criar(req: Request, res: Response) {
-    try {
-      const { id_docente, id_sala, id_equipamento, id_reserva, descricao, foto, gravidade } = req.body;
-
-      const novaAvaria = await avariaService.criar({
-        id_docente: Number(id_docente),
-        id_sala: Number(id_sala),
-        id_equipamento: Number(id_equipamento),
-        id_reserva: id_reserva ? Number(id_reserva) : undefined,
+    const avaria = await avariaService.registrarViaForms(
+      {
+        nif_docente: docNif.trim(),
+        qr_code_sala: String(codigoSala).trim(),
+        nif_equipamento: nif_equipamento.trim(),
         descricao,
         foto,
         gravidade,
-      });
+      },
+      Number(id_usuario_logado)
+    );
 
-      return res.status(201).json({
-        message: 'Avaria registrada com sucesso!',
-        avaria: novaAvaria,
-      });
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({ message: error.message });
-    }
+    return res.status(201).json({
+      message: 'Avaria registrada com sucesso e encaminhada ao setor responsável.',
+      avaria,
+    });
+  }
+
+  async listar(req: Request, res: Response) {
+    const { status } = req.query;
+
+    const avarias = await avariaService.listar(status ? String(status) : undefined);
+
+    return res.status(200).json(avarias);
+  }
+
+  async buscarPorId(req: Request, res: Response) {
+    const { id } = req.params;
+    const avaria = await avariaService.buscarPorId(Number(id));
+    return res.status(200).json(avaria);
   }
 
   async atualizarStatus(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { status, gravidade } = req.body;
+    const { id } = req.params;
+    const { status } = req.body;
 
-      const avariaAtualizada = await avariaService.atualizarStatus(
-        Number(id),
-        status,
-        gravidade
-      );
+    const avariaAtualizada = await avariaService.atualizarStatus(Number(id), status);
 
-      return res.status(200).json({
-        message: 'Status/Gravidade da avaria atualizado com sucesso!',
-        avaria: avariaAtualizada,
-      });
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({ message: error.message });
-    }
-  }
-
-  async deletar(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const resultado = await avariaService.deletar(Number(id));
-
-      return res.status(200).json({
-        message: 'Avaria removida com sucesso!',
-        avaria: resultado,
-      });
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({ message: error.message });
-    }
+    return res.status(200).json({
+      message: 'Status da avaria atualizado com sucesso.',
+      avaria: avariaAtualizada,
+    });
   }
 }
+
+export const avariaController = new AvariaController();

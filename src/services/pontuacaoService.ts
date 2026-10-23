@@ -1,84 +1,129 @@
-// import prisma from '../config/prisma';
-// import { Prisma } from '@prisma/client';
-// import { AppError } from '../errors/AppError';
+import prisma from '../config/prisma';
+import { AppError } from '../errors/AppError';
 
-// export class PontuacaoService {
-//   // RF05 / RN15: Registrar pontuação vinculada à reserva e turma
-//   async registrar(dados: {
-//     id_reserva: number;
-//     id_turma: number;
-//     pontos: number;
-//     semestre_letivo: string;
-//   }) {
-//     if (!dados.id_reserva || !dados.id_turma || dados.pontos === undefined || !dados.semestre_letivo) {
-//       throw new AppError('Reserva, turma, pontos e semestre letivo são obrigatórios.', 400);
-//     }
+export interface ICriarPontuacaoInput {
+  id_docente: number;
+  pontos: number;
+  semestre_letivo: string;
+}
 
-//     const [reserva, turma] = await Promise.all([
-//       prisma.reserva.findUnique({ where: { id_reserva: dados.id_reserva } }),
-//       prisma.turma.findUnique({ where: { id_turma: dados.id_turma } }),
-//     ]);
+export class PontuacaoService {
+  // Registrar nova pontuação
+  async registrarPontuacao(dados: ICriarPontuacaoInput) {
+    const { id_docente, pontos, semestre_letivo } = dados;
 
-//     if (!reserva) throw new AppError('Reserva não encontrada.', 404);
-//     if (!turma) throw new AppError('Turma não encontrada.', 404);
+    if (!id_docente || isNaN(id_docente)) {
+      throw new AppError('O ID do docente é obrigatório.', 400);
+    }
 
-//     try {
-//       return await prisma.pontuacao.create({
-//         data: {
-//           id_reserva: dados.id_reserva,
-//           id_turma: dados.id_turma,
-//           pontos: dados.pontos,
-//           semestre_letivo: dados.semestre_letivo,
-//         },
-//         include: {
-//           turma: { select: { id_turma: true, nome: true, curso: true } },
-//           reserva: { select: { id_reserva: true, dt_reserva: true } },
-//         },
-//       });
-//     } catch (error) {
-//       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-//         throw new AppError('Erro de chave estrangeira ao registrar pontuação.', 400);
-//       }
-//       throw error;
-//     }
-//   }
+    if (pontos === undefined || isNaN(pontos)) {
+      throw new AppError('O valor dos pontos é obrigatório.', 400);
+    }
 
-//   // Obter ranking consolidado por turma no semestre letivo vigente
-//   async obterRanking(semestre_letivo?: string) {
-//     const semestre = semestre_letivo || '2026-2';
+    if (!semestre_letivo || !semestre_letivo.trim()) {
+      throw new AppError('O semestre letivo é obrigatório.', 400);
+    }
 
-//     return await prisma.pontuacao.groupBy({
-//       by: ['id_turma'],
-//       where: { semestre_letivo: semestre },
-//       _sum: { pontos: true },
-//       orderBy: { _sum: { pontos: 'desc' } },
-//     });
-//   }
+    const docenteExiste = await prisma.usuario.findUnique({
+      where: { id_usuario: id_docente },
+    });
 
-//   // Listar histórico de pontuações por turma
-//   async listarPorTurma(id_turma: number) {
-//     if (isNaN(id_turma)) throw new AppError('ID de turma inválido.', 400);
+    if (!docenteExiste) {
+      throw new AppError('Docente não encontrado.', 404);
+    }
 
-//     return await prisma.pontuacao.findMany({
-//       where: { id_turma },
-//       include: {
-//         reserva: { select: { id_reserva: true, dt_reserva: true } },
-//       },
-//       orderBy: { id_pontuacao: 'desc' },
-//     });
-//   }
+    const novaPontuacao = await prisma.pontuacao.create({
+      data: {
+        id_docente,
+        pontos,
+        semestre_letivo: semestre_letivo.trim(),
+      },
+      include: {
+        docente: {
+          select: {
+            id_usuario: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
 
-//   // RN15: Reset semestral de pontuação
-//   async resetSemestral(semestre_letivo: string) {
-//     if (!semestre_letivo) throw new AppError('Informe o semestre letivo para o reset.', 400);
+    return novaPontuacao;
+  }
 
-//     const resultado = await prisma.pontuacao.deleteMany({
-//       where: { semestre_letivo },
-//     });
+  // Obter ranking semestral consolidado por docente
+  async obterRankingSemestral(semestre_letivo: string) {
+    if (!semestre_letivo || !semestre_letivo.trim()) {
+      throw new AppError('O semestre letivo deve ser informado para consultar o ranking.', 400);
+    }
 
-//     return {
-//       message: `Pontuações do semestre ${semestre_letivo} resetadas com sucesso.`,
-//       registros_removidos: resultado.count,
-//     };
-//   }
-// }
+    // Agrupa a pontuação total por docente dentro do semestre informado
+    const rankingAgrupado = await prisma.pontuacao.groupBy({
+      by: ['id_docente'],
+      where: {
+        semestre_letivo: semestre_letivo.trim(),
+      },
+      _sum: {
+        pontos: true,
+      },
+      orderBy: {
+        _sum: {
+          pontos: 'desc',
+        },
+      },
+    });
+
+    // Busca os dados cadastrais dos docentes no ranking
+    const rankingComDocente = await Promise.all(
+      rankingAgrupado.map(async (item, index) => {
+        const docente = await prisma.usuario.findUnique({
+          where: { id_usuario: item.id_docente },
+          select: {
+            id_usuario: true,
+            nome: true,
+            email: true,
+          },
+        });
+
+        return {
+          posicao: index + 1,
+          docente,
+          total_pontos: item._sum.pontos || 0,
+          semestre_letivo: semestre_letivo.trim(),
+        };
+      })
+    );
+
+    return rankingComDocente;
+  }
+
+  // Buscar histórico individual de pontuações de um docente
+  async buscarHistoricoDocente(id_docente: number, semestre_letivo?: string) {
+    if (!id_docente || isNaN(id_docente)) {
+      throw new AppError('ID do docente inválido.', 400);
+    }
+
+    constndeClause: any = { id_docente };
+    if (semestre_letivo) {
+      whereClause.semestre_letivo = semestre_letivo.trim();
+    }
+
+    const historico = await prisma.pontuacao.findMany({
+      where: whereClause,
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const totalPontos = historico.reduce((acc, curr) => acc + curr.pontos, 0);
+
+    return {
+      id_docente,
+      total_pontos: totalPontos,
+      historico,
+    };
+  }
+}
+
+export const pontuacaoService = new PontuacaoService();

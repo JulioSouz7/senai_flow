@@ -100,6 +100,8 @@ model Sala {
   trocas_origem        TrocaSala[]       @relation("TrocaSalaOrigem")
   trocas_destino       TrocaSala[]       @relation("TrocaSalaDestino")
   horarios_disponiveis SalaHorario[]
+  Pontuacao     Pontuacao[]
+
 
   @@map("SALA")
 }
@@ -160,7 +162,6 @@ model Turma {
   docente_turma DocenteTurma[]
   reservas      Reserva[]
   comunicados   Comunicado[]
-  Pontuacao     Pontuacao[]
 
   @@map("TURMA")
 }
@@ -205,7 +206,7 @@ model Reserva {
   trocas_sala        TrocaSala[]
   solicitacoes_equip SolicitacaoEquipamento[]
   comunicados        Comunicado[]
-  Pontuacao          Pontuacao?
+  Pontuacao     Pontuacao[]
 
   @@map("RESERVA")
 }
@@ -284,12 +285,12 @@ model TrocaSala {
 model Pontuacao {
   id_pontuacao    Int    @id @default(autoincrement())
   id_reserva      Int    @unique
-  id_turma        Int
+  id_sala        Int
   pontos          Int
   semestre_letivo String @db.VarChar(20)
 
   reserva Reserva @relation(fields: [id_reserva], references: [id_reserva])
-  turma   Turma   @relation(fields: [id_turma], references: [id_turma])
+  sala   Sala   @relation(fields: [id_sala], references: [id_sala])
 
   @@map("PONTUACAO")
 }

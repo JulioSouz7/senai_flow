@@ -5,7 +5,7 @@ import { AppError } from '../errors/AppError';
 export class SalaController {
   // Criar Sala
   async criar(req: Request, res: Response) {
-    const { id_predio, nome, capacidade, qr_code, horarios } = req.body;
+    const { id_predio, nome, capacidade, qr_code, foto, horarios } = req.body;
 
     if (!id_predio || isNaN(Number(id_predio))) {
       throw new AppError('O campo id_predio é obrigatório e deve ser numérico.', 400);
@@ -28,6 +28,7 @@ export class SalaController {
       nome: nome.trim(),
       capacidade: Number(capacidade),
       qr_code: qr_code.trim(),
+      foto,
       horarios,
     });
 
@@ -89,7 +90,7 @@ export class SalaController {
   // Atualizar Sala
   async atualizar(req: Request, res: Response) {
     const { id } = req.params;
-    const { id_predio, nome, capacidade, qr_code, horarios } = req.body;
+    const { id_predio, nome, capacidade, qr_code, foto, horarios } = req.body;
 
     if (!id || isNaN(Number(id))) {
       throw new AppError('O ID da sala informado na URL é inválido.', 400);
@@ -100,6 +101,7 @@ export class SalaController {
       nome,
       capacidade: capacidade ? Number(capacidade) : undefined,
       qr_code,
+      foto,
       horarios,
     });
 
