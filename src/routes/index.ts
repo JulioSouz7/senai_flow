@@ -5,16 +5,17 @@ import predioRoutes from './predioRoutes';
 import equipamentoRoutes from './equipamentoRoutes';
 import turmaRoutes from './turmaRoutes';
 import {reservaRoutes} from './reservaRoutes';
-import avariaRoutes from './avariaRoutes';
-import comunicadoRoutes from './comunicadoRoutes';
+import {avariaRoutes} from './avariaRoutes';
+import {comunicadoRoutes} from './comunicadoRoutes';
 import trocaSalaRoutes from './trocaSalaRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import { relatoRoutes } from './relatoSugestaoRoutes';
-// import reservaDetalhesRoutes from './reservaDetalhesRoutes';
 import solicitacaoRoutes from './solicitacaoEquipamentoRoutes';
 import usuarioPerfilRoutes from './usuarioPerfilRoutes';
 import { areaRiscoRoutes } from './areaRiscoRoutes';
-// import pontuacaoRoutes from './pontuacaoRoutes';
+import  {pontuacaoRoutes}  from './pontuacaoRoutes';
+import  {faqRoutes}  from './faqRoutes';
+import  {chamadoSuporteRoutes}  from './chamadoSuporteRoutes';
 
 const routes = Router();
 
@@ -29,10 +30,12 @@ routes.use('/comunicados', comunicadoRoutes);
 routes.use('/trocas-sala', trocaSalaRoutes);
 routes.use('/dashboard', dashboardRoutes);
 routes.use('/relatos-sugestoes', relatoRoutes);
-// routes.use('/reservas-detalhes', reservaDetalhesRoutes);
 routes.use('/solicitacoes-equipamentos', solicitacaoRoutes);
 routes.use('/registro', usuarioPerfilRoutes);
+routes.use('/usuarios', usuarioPerfilRoutes);
 routes.use('/areas-risco', areaRiscoRoutes);
-// routes.use('/pontuacao', pontuacaoRoutes);
+routes.use('/pontuacoes', pontuacaoRoutes);
+routes.use('/faqs', faqRoutes);
+routes.use('/chamados', chamadoSuporteRoutes);
 
 export default routes;

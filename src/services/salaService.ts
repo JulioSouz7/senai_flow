@@ -12,6 +12,7 @@ interface ICriarSalaInput {
   nome: string;
   capacidade: number;
   qr_code: string;
+  foto: string
   horarios: IHorarioInput[];
 }
 
@@ -20,17 +21,19 @@ interface IAtualizarSalaInput {
   nome?: string;
   capacidade?: number;
   qr_code?: string;
+  foto?: string
   horarios?: IHorarioInput[];
 }
 
-interface IFiltroSalaInput {
+export interface IFiltroSalaInput {
   nome?: string;
   tipo?: string; // Ex: "LABORATORIO", "TEORICA"
   bloco?: string;
   capacidade_minima?: number;
   capacidade?: number;
   ativa?: boolean;
-  id_equipamento?: number; // Filtrar salas que possuem determinado equipamento
+  id_equipamento?: number; // Filtrar por ID do equipamento
+  equipamento?: string;    // Filtrar por NOME do equipamento (ex: "Projetor")
 }
 
 export class SalaService {
@@ -73,6 +76,7 @@ export class SalaService {
         nome: dados.nome,
         capacidade: dados.capacidade,
         qr_code: dados.qr_code,
+        foto: dados.foto,
         horarios_disponiveis: {
           create: dados.horarios.map((h) => ({
             id_horario: h.id_horario,
@@ -92,7 +96,16 @@ export class SalaService {
   }
 
   async filtrarSalas(filtros: IFiltroSalaInput) {
-    const { nome, tipo, bloco, capacidade, capacidade_minima, ativa } = filtros;
+    const {
+      nome,
+      tipo,
+      bloco,
+      capacidade,
+      capacidade_minima,
+      ativa,
+      id_equipamento,
+      equipamento,
+    } = filtros;
 
     // Constrói o filtro da capacidade
     let whereCapacidade = {};
@@ -102,18 +115,49 @@ export class SalaService {
       whereCapacidade = { capacidade: { gte: capacidade_minima } };
     }
 
+    // Constrói o filtro da tabela relacional SALA_EQUIPAMENTO
+    let whereEquipamento = {};
+    if (id_equipamento && !isNaN(id_equipamento)) {
+      whereEquipamento = {
+        sala_equipamento: {
+          some: {
+            id_equipamento: id_equipamento,
+          },
+        },
+      };
+    } else if (equipamento) {
+      whereEquipamento = {
+        sala_equipamento: {
+          some: {
+            equipamento: {
+              nome: {
+                contains: equipamento,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      };
+    }
+
     return await prisma.sala.findMany({
       where: {
         ...(nome ? { nome: { contains: nome, mode: 'insensitive' } } : {}),
         ...(tipo ? { tipo: { contains: tipo, mode: 'insensitive' } } : {}),
         ...(bloco ? { bloco: { contains: bloco, mode: 'insensitive' } } : {}),
         ...whereCapacidade,
+        ...whereEquipamento,
         ...(ativa !== undefined ? { ativa } : { ativa: true }),
       },
       include: {
         predio: true,
         horarios_disponiveis: {
           include: { horario: true },
+        },
+        sala_equipamento: {
+          include: {
+            equipamento: true,
+          },
         },
       },
       orderBy: { nome: 'asc' },
@@ -202,6 +246,7 @@ export class SalaService {
           nome: dados.nome,
           capacidade: dados.capacidade,
           qr_code: dados.qr_code,
+          foto: dados.foto,
         },
         include: {
           predio: true,

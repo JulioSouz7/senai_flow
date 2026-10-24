@@ -1,84 +1,117 @@
-// import prisma from '../config/prisma';
-// import { Prisma } from '@prisma/client';
-// import { AppError } from '../errors/AppError';
+import prisma from '../config/prisma';
+import { AppError } from '../errors/AppError';
 
-// export class PontuacaoService {
-//   // RF05 / RN15: Registrar pontuação vinculada à reserva e turma
-//   async registrar(dados: {
-//     id_reserva: number;
-//     id_turma: number;
-//     pontos: number;
-//     semestre_letivo: string;
-//   }) {
-//     if (!dados.id_reserva || !dados.id_turma || dados.pontos === undefined || !dados.semestre_letivo) {
-//       throw new AppError('Reserva, turma, pontos e semestre letivo são obrigatórios.', 400);
-//     }
+export class PontuacaoService {
+  // Obter o ranking das salas mais organizadas no semestre
+  async obterRankingSalas(semestre_letivo?: string) {
+    // Caso não envie o semestre, pega o atual
+    const semestreBusca = semestre_letivo || this.obterSemestreAtual();
 
-//     const [reserva, turma] = await Promise.all([
-//       prisma.reserva.findUnique({ where: { id_reserva: dados.id_reserva } }),
-//       prisma.turma.findUnique({ where: { id_turma: dados.id_turma } }),
-//     ]);
+    if (!semestreBusca || !semestreBusca.trim()) {
+      throw new AppError('O semestre letivo deve ser informado no formato AAAA/S (ex: 2026/1).', 400);
+    }
 
-//     if (!reserva) throw new AppError('Reserva não encontrada.', 404);
-//     if (!turma) throw new AppError('Turma não encontrada.', 404);
+    // Agrupa a pontuação total por sala no semestre informado
+    const rankingAgrupado = await prisma.pontuacao.groupBy({
+      by: ['id_sala'],
+      where: {
+        semestre_letivo: semestreBusca.trim(),
+      },
+      _sum: {
+        pontos: true,
+      },
+      _count: {
+        id_pontuacao: true, // Total de avaliações no semestre
+      },
+      orderBy: {
+        _sum: {
+          pontos: 'desc',
+        },
+      },
+    });
 
-//     try {
-//       return await prisma.pontuacao.create({
-//         data: {
-//           id_reserva: dados.id_reserva,
-//           id_turma: dados.id_turma,
-//           pontos: dados.pontos,
-//           semestre_letivo: dados.semestre_letivo,
-//         },
-//         include: {
-//           turma: { select: { id_turma: true, nome: true, curso: true } },
-//           reserva: { select: { id_reserva: true, dt_reserva: true } },
-//         },
-//       });
-//     } catch (error) {
-//       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-//         throw new AppError('Erro de chave estrangeira ao registrar pontuação.', 400);
-//       }
-//       throw error;
-//     }
-//   }
+    // Anexa os detalhes das salas ao ranking
+    const rankingComDetalhes = await Promise.all(
+      rankingAgrupado.map(async (item, index) => {
+        const sala = await prisma.sala.findUnique({
+          where: { id_sala: item.id_sala },
+          include: {
+            predio: {
+              select: {
+                nome: true,
+              },
+            },
+          },
+        });
 
-//   // Obter ranking consolidado por turma no semestre letivo vigente
-//   async obterRanking(semestre_letivo?: string) {
-//     const semestre = semestre_letivo || '2026-2';
+        return {
+          posicao: index + 1,
+          id_sala: item.id_sala,
+          nome_sala: sala?.nome || 'Sala Removida',
+          predio: sala?.predio?.nome || 'N/A',
+          total_pontos: item._sum.pontos || 0,
+          total_avaliacoes: item._count.id_pontuacao,
+          semestre_letivo: semestreBusca.trim(),
+        };
+      })
+    );
 
-//     return await prisma.pontuacao.groupBy({
-//       by: ['id_turma'],
-//       where: { semestre_letivo: semestre },
-//       _sum: { pontos: true },
-//       orderBy: { _sum: { pontos: 'desc' } },
-//     });
-//   }
+    return rankingComDetalhes;
+  }
 
-//   // Listar histórico de pontuações por turma
-//   async listarPorTurma(id_turma: number) {
-//     if (isNaN(id_turma)) throw new AppError('ID de turma inválido.', 400);
+  // Buscar o histórico detalhado de pontuações de uma sala específica
+  async buscarHistoricoSala(id_sala: number, semestre_letivo?: string) {
+    if (!id_sala || isNaN(id_sala) || id_sala <= 0) {
+      throw new AppError('O ID da sala deve ser um número inteiro positivo.', 400);
+    }
 
-//     return await prisma.pontuacao.findMany({
-//       where: { id_turma },
-//       include: {
-//         reserva: { select: { id_reserva: true, dt_reserva: true } },
-//       },
-//       orderBy: { id_pontuacao: 'desc' },
-//     });
-//   }
+    const salaExiste = await prisma.sala.findUnique({
+      where: { id_sala },
+    });
 
-//   // RN15: Reset semestral de pontuação
-//   async resetSemestral(semestre_letivo: string) {
-//     if (!semestre_letivo) throw new AppError('Informe o semestre letivo para o reset.', 400);
+    if (!salaExiste) {
+      throw new AppError('Sala não encontrada.', 404);
+    }
 
-//     const resultado = await prisma.pontuacao.deleteMany({
-//       where: { semestre_letivo },
-//     });
+    const whereCondition: any = { id_sala };
+    if (semestre_letivo) {
+      whereCondition.semestre_letivo = semestre_letivo.trim();
+    }
 
-//     return {
-//       message: `Pontuações do semestre ${semestre_letivo} resetadas com sucesso.`,
-//       registros_removidos: resultado.count,
-//     };
-//   }
-// }
+    const historico = await prisma.pontuacao.findMany({
+      where: whereCondition,
+      include: {
+        reserva: {
+          select: {
+            dt_encerramento: true,
+            sala_em_ordem: true,
+            houve_avaria: true,
+            obs_encerramento: true,
+          },
+        },
+      },
+      orderBy: {
+        id_pontuacao: 'desc',
+      },
+    });
+
+    const totalPontos = historico.reduce((acc, item) => acc + item.pontos, 0);
+
+    return {
+      id_sala,
+      nome_sala: salaExiste.nome,
+      total_pontos: totalPontos,
+      semestre_letivo: semestre_letivo || 'TODOS',
+      historico,
+    };
+  }
+
+  private obterSemestreAtual(): string {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const semestre = hoje.getMonth() < 6 ? '1' : '2';
+    return `${ano}/${semestre}`;
+  }
+}
+
+export const pontuacaoService = new PontuacaoService();

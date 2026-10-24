@@ -11,7 +11,7 @@ interface ICriarReservaInput {
   id_sala: number;
   id_turma: number;
   id_docente: number;
-  nome_solicitante: string;
+  nome_solicitante?: string;
   horarios: IHorarioReservaInput[];
 }
 
@@ -29,10 +29,33 @@ interface IListarReservasFiltros {
   id_sala?: number;
   id_turma?: number;
   id_docente?: number;
-  status?: string; // PENDENTE | CONFIRMADA | RECUSADA | CANCELADA | ENCERRADA
+  status?: string;
 }
 
 export class ReservaService {
+  /**
+   * Valida e resolve o ID do administrador a partir do token (id_adm ou id_usuario).
+   */
+  private async obterIdAdminValido(id_admin_ou_usuario: number): Promise<number> {
+    const adminDireto = await prisma.administrador.findUnique({
+      where: { id_adm: id_admin_ou_usuario },
+    });
+
+    if (adminDireto) {
+      return adminDireto.id_adm;
+    }
+
+    const adminPorUsuario = await prisma.administrador.findUnique({
+      where: { id_usuario: id_admin_ou_usuario },
+    });
+
+    if (adminPorUsuario) {
+      return adminPorUsuario.id_adm;
+    }
+
+    throw new AppError('Usuário autenticado não possui um perfil de administrador cadastrado.', 403);
+  }
+
   async listarReservas(filtros: IListarReservasFiltros) {
     const { id_sala, id_turma, id_docente, status } = filtros;
 
@@ -108,17 +131,19 @@ export class ReservaService {
           orderBy: { dt_reserva: 'asc' },
         },
       },
-      orderBy: { dt_solicitacao: 'asc' }, // As solicitações mais antigas aparecem primeiro
+      orderBy: { dt_solicitacao: 'asc' },
     });
   }
 
-  // 1. Criar Reserva Normal (Docente ou Admin)
   async criarReserva(dados: ICriarReservaInput) {
+    if (!dados.id_docente) {
+      throw new AppError('O identificador do docente é obrigatório para esta operação.', 401);
+    }
+
     if (!dados.horarios || dados.horarios.length === 0) {
       throw new AppError('É necessário informar ao menos um horário para efetuar a reserva.', 400);
     }
 
-    // RN06: Toda reserva deve ser solicitada com no mínimo 48 horas de antecedência
     const agora = new Date();
     for (const h of dados.horarios) {
       const dataHoraReserva = new Date(h.dt_reserva);
@@ -128,7 +153,6 @@ export class ReservaService {
       }
     }
 
-    // RN19: Cada reserva deve ser associada a uma única turma e no mínimo a 1 professor
     const turmaExiste = await prisma.turma.findUnique({ where: { id_turma: dados.id_turma } });
     if (!turmaExiste) {
       throw new AppError('A turma informada não existe.', 404);
@@ -141,10 +165,9 @@ export class ReservaService {
 
     const docenteExiste = await prisma.docente.findUnique({ where: { id_docente: dados.id_docente } });
     if (!docenteExiste) {
-      throw new AppError('O docente informado não foi encontrado.', 404);
+      throw new AppError('Docente não encontrado no sistema.', 404);
     }
 
-    // RN26: Limite de 10 horas de reserva por semana por docente
     const totalReservasSemana = await prisma.reservaHorario.count({
       where: {
         reserva: {
@@ -158,9 +181,34 @@ export class ReservaService {
       throw new AppError('O docente não pode exceder o limite de 10 horas de sala por semana (RN26).', 400);
     }
 
-    // Validação de Conflito de Horário e Horário Fixo (RN28 e RN31)
+    // 🔒 NOVA CONDIÇÃO: Uma turma não pode conter duas reservas no mesmo horário e em salas diferentes
     for (const h of dados.horarios) {
-      const conflito = await prisma.reservaHorario.findFirst({
+      const salaHorarioAtual = await prisma.salaHorario.findUnique({
+        where: { id_sala_horario: h.id_sala_horario },
+      });
+
+      if (salaHorarioAtual) {
+        const conflitoTurma = await prisma.reservaHorario.findFirst({
+          where: {
+            dt_reserva: new Date(h.dt_reserva),
+            sala_horario: {
+              id_horario: salaHorarioAtual.id_horario,
+              dia_semana: salaHorarioAtual.dia_semana,
+            },
+            reserva: {
+              id_turma: dados.id_turma,
+              status: { in: ['PENDENTE', 'CONFIRMADA'] },
+            },
+          },
+        });
+
+        if (conflitoTurma) {
+          throw new AppError('A turma informada já possui uma reserva agendada para este mesmo horário em outra sala.', 400);
+        }
+      }
+
+      // Validação de conflito de horários na mesma sala
+      const conflitoSala = await prisma.reservaHorario.findFirst({
         where: {
           id_sala_horario: h.id_sala_horario,
           dt_reserva: new Date(h.dt_reserva),
@@ -168,10 +216,7 @@ export class ReservaService {
         },
       });
 
-      if (conflito) {
-        // RN33: Sugerir automaticamente salas alternativas livres
-        const salaHorarioAtual = await prisma.salaHorario.findUnique({ where: { id_sala_horario: h.id_sala_horario } });
-
+      if (conflitoSala) {
         const salasAlternativas = await prisma.sala.findMany({
           where: {
             id_sala: { not: dados.id_sala },
@@ -184,14 +229,14 @@ export class ReservaService {
         });
 
         throw new AppError(
-          `Horário indisponível para esta sala. Sugestão de salas alternativas com este horário vago: ${salasAlternativas.map((s) => s.nome).join(', ') || 'Nenhuma no momento'
-          } .`,
+          `Horário indisponível para esta sala. Sugestão de salas alternativas com este horário vago: ${
+            salasAlternativas.map((s) => s.nome).join(', ') || 'Nenhuma no momento'
+          }.`,
           409
         );
       }
     }
 
-    // RN05: Cria a reserva com status PENDENTE para validação da Administração
     return await prisma.$transaction(async (tx) => {
       const reserva = await tx.reserva.create({
         data: {
@@ -220,8 +265,70 @@ export class ReservaService {
     });
   }
 
-  // 2. Decisão do Administrador: Aprovar ou Recusar Reserva Normal
-  async decidirReserva(id_reserva: number, aprovar: boolean, id_adm: number) {
+  async solicitarUrgencia(dados: IReservaUrgenciaInput) {
+    if (!dados.id_docente) {
+      throw new AppError('O identificador do docente é obrigatório para esta operação.', 401);
+    }
+
+    if (!dados.justificativa_urgencia || dados.justificativa_urgencia.trim().length < 10) {
+      throw new AppError('É obrigatório fornecer uma justificativa de urgência detalhada (mínimo 10 caracteres).', 400);
+    }
+
+    if (!dados.horarios || dados.horarios.length === 0) {
+      throw new AppError('É necessário fornecer os horários desejados.', 400);
+    }
+
+    const reservaExistente = await prisma.reserva.findFirst({
+      where: {
+        id_sala: dados.id_sala,
+        status: 'CONFIRMADA',
+        reserva_horario: {
+          some: {
+            id_sala_horario: { in: dados.horarios.map((h) => h.id_sala_horario) },
+          },
+        },
+      },
+      include: {
+        reserva_docente: true,
+      },
+    });
+
+    if (!reservaExistente) {
+      throw new AppError('Não existe uma reserva confirmada nesta sala para o horário solicitado para solicitar urgência.', 400);
+    }
+
+    // 🔒 NOVA CONDIÇÃO: O mesmo docente não pode realizar uma reserva de urgência para a mesma sala já reservada por ele
+    const docenteEhTitular = reservaExistente.reserva_docente.some(
+      (rd) => rd.id_docente === dados.id_docente
+    );
+
+    if (docenteEhTitular) {
+      throw new AppError('Você não pode solicitar reserva de urgência para uma sala que já está reservada por você mesmo.', 400);
+    }
+
+    return await prisma.reserva.create({
+      data: {
+        id_sala: dados.id_sala,
+        id_turma: dados.id_turma,
+        tipo: 'URGENCIA',
+        status: 'PENDENTE',
+        justificativa_urgencia: dados.justificativa_urgencia.trim(),
+        id_reserva_urgencia: reservaExistente.id_reserva,
+        reserva_docente: {
+          create: { id_docente: dados.id_docente },
+        },
+      },
+      include: {
+        sala: true,
+        turma: true,
+        reserva_docente: true,
+      },
+    });
+  }
+
+  async decidirReserva(id_reserva: number, aprovar: boolean, id_admin_ou_usuario: number) {
+    const id_adm = await this.obterIdAdminValido(id_admin_ou_usuario);
+
     const reserva = await prisma.reserva.findUnique({
       where: { id_reserva },
       include: {
@@ -255,7 +362,6 @@ export class ReservaService {
       });
 
       if (aprovar) {
-        // RN22: Enviar mensagem particular para a turma informando sala e docente
         const nomeDocente = reserva?.reserva_docente[0]?.docente?.usuario?.nome || 'Coordenador';
         await tx.comunicado.create({
           data: {
@@ -263,6 +369,7 @@ export class ReservaService {
             conteudo: `Sua aula será na sala ${reserva.sala.nome}. Responsável: ${nomeDocente}.`,
             abrangencia: `TURMA`,
             id_turma: reserva.id_turma,
+            id_reserva: reserva.id_reserva,
             id_adm,
           },
         });
@@ -275,57 +382,9 @@ export class ReservaService {
     });
   }
 
-  // 3. Reserva de Urgência (RN08)
-  // 3. Reserva de Urgência (RN08)
-  async solicitarUrgencia(dados: IReservaUrgenciaInput) {
-    if (!dados.justificativa_urgencia || dados.justificativa_urgencia.trim().length < 10) {
-      throw new AppError('É obrigatório fornecer uma justificativa de urgência detalhada (mínimo 10 caracteres).', 400);
-    }
+  async decidirUrgencia(id_reserva_urgencia: number, aprovar: boolean, id_admin_ou_usuario: number, nova_sala_antiga?: number) {
+    const id_admin = await this.obterIdAdminValido(id_admin_ou_usuario);
 
-    if (!dados.horarios || dados.horarios.length === 0) {
-      throw new AppError('É necessário fornecer os horários desejados.', 400);
-    }
-
-    // Busca a reserva confirmada existente que sofrerá o conflito de urgência
-    const reservaExistente = await prisma.reserva.findFirst({
-      where: {
-        id_sala: dados.id_sala,
-        status: 'CONFIRMADA',
-        reserva_horario: {
-          some: {
-            id_sala_horario: { in: dados.horarios.map((h) => h.id_sala_horario) },
-          },
-        },
-      },
-    });
-
-    if (!reservaExistente) {
-      throw new AppError('Não existe uma reserva confirmada nesta sala para o horário solicitado para solicitar urgência.', 400);
-    }
-
-    // Cria a solicitação de urgência sem inserir ainda em ReservaHorario para não violar a @@unique([id_sala_horario, dt_reserva])
-    return await prisma.reserva.create({
-      data: {
-        id_sala: dados.id_sala,
-        id_turma: dados.id_turma,
-        tipo: 'URGENCIA',
-        status: 'PENDENTE',
-        justificativa_urgencia: dados.justificativa_urgencia.trim(),
-        id_reserva_urgencia: reservaExistente.id_reserva,
-        reserva_docente: {
-          create: { id_docente: dados.id_docente },
-        },
-      },
-      include: {
-        sala: true,
-        turma: true,
-        reserva_docente: true,
-      },
-    });
-  }
-
-  // 4. Decidir Urgência e Realocar Antigo Docente (Com validação e troca de horários)
-  async decidirUrgencia(id_reserva_urgencia: number, aprovar: boolean, id_admin: number, nova_sala_antiga?: number) {
     const reservaUrgente = await prisma.reserva.findUnique({
       where: { id_reserva: id_reserva_urgencia },
       include: {
@@ -334,6 +393,7 @@ export class ReservaService {
             reserva_horario: { include: { sala_horario: true } },
           },
         },
+        reserva_docente: true,
       },
     });
 
@@ -359,7 +419,6 @@ export class ReservaService {
       throw new AppError('Reserva original a ser realocada não foi encontrada.', 404);
     }
 
-    // Validação dos horários livres na nova sala
     for (const rh of reservaAntiga.reserva_horario) {
       const idHorarioOriginal = rh.sala_horario.id_horario;
       const diaSemanaOriginal = rh.sala_horario.dia_semana;
@@ -391,7 +450,6 @@ export class ReservaService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Apaga temporariamente os vínculos da reserva antiga na ReservaHorario para liberar a chave única
       const horariosOriginais = await tx.reservaHorario.findMany({
         where: { id_reserva: reservaAntiga.id_reserva },
       });
@@ -400,7 +458,6 @@ export class ReservaService {
         where: { id_reserva: reservaAntiga.id_reserva },
       });
 
-      // 2. Transfere a titularidade dos horários da sala original para a nova reserva de urgência
       for (const rh of horariosOriginais) {
         await tx.reservaHorario.create({
           data: {
@@ -411,13 +468,11 @@ export class ReservaService {
         });
       }
 
-      // 3. Atualiza status da reserva urgente
       await tx.reserva.update({
         where: { id_reserva: id_reserva_urgencia },
         data: { status: 'CONFIRMADA', id_admin, dt_validacao: new Date() },
       });
 
-      // 4. Realoca a reserva antiga para a nova sala e recria seus horários na nova sala
       await tx.reserva.update({
         where: { id_reserva: reservaAntiga.id_reserva },
         data: { id_sala: nova_sala_antiga },
@@ -443,13 +498,18 @@ export class ReservaService {
         }
       }
 
-      // 5. Registra o histórico de troca de sala
+      const docenteSolicitante = reservaUrgente.reserva_docente[0]?.id_docente;
+
       await tx.trocaSala.create({
         data: {
           id_reserva: reservaAntiga.id_reserva,
           id_sala_origem: reservaUrgente.id_sala,
           id_sala_destino: nova_sala_antiga,
+          id_docente_solicitante: docenteSolicitante,
+          id_coordenador: id_admin,
+          status: 'ACEITA',
           motivo: `Realocação por Urgência: ${reservaUrgente.justificativa_urgencia}`,
+          dt_troca: new Date(),
         },
       });
 
@@ -457,10 +517,10 @@ export class ReservaService {
     });
   }
 
-  // 5. Encerrar Reserva (RN25 - Apenas confirmação de ordem, avaria [boolean] e observações)
   async encerrarReserva(id_reserva: number, dados: IEncerrarReservaInput) {
     const { sala_em_ordem, houve_avaria, obs_encerramento } = dados;
 
+    // 1. Busca a reserva existente
     const reservaExistente = await prisma.reserva.findUnique({
       where: { id_reserva },
     });
@@ -469,20 +529,50 @@ export class ReservaService {
       throw new AppError('Reserva não encontrada.', 404);
     }
 
-    return await prisma.reserva.update({
-      where: { id_reserva },
-      data: {
-        status: 'ENCERRADA',
-        sala_em_ordem: sala_em_ordem ?? true,
-        // ✅ Garante que se houve_avaria for enviado como false, é gravado false (e não NULL)
-        houve_avaria: houve_avaria !== undefined ? houve_avaria : false,
-        obs_encerramento: obs_encerramento || null,
-        dt_encerramento: new Date(),
-      },
-    });
+    if (reservaExistente.status === 'ENCERRADA') {
+      throw new AppError('Esta reserva já foi encerrada.', 400);
+    }
+
+    // Valores consolidados
+    const emOrdem = sala_em_ordem ?? true;
+    const temAvaria = houve_avaria !== undefined ? houve_avaria : false;
+
+    // 2. Cálculo dos pontos da sala
+    let pontosOrganizacao = emOrdem ? 10 : 0;
+    let pontosAvaria = temAvaria ? 5 : 10;
+    const totalPontos = pontosOrganizacao + pontosAvaria;
+
+    // 3. Define o semestre letivo atual (ex: "2026/2")
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const semestre = hoje.getMonth() < 6 ? '1' : '2';
+    const semestreLetivo = `${ano}/${semestre}`;
+
+    // 4. Transação no Prisma: encerra a reserva e registra a pontuação da sala
+    const [reservaEncerrada] = await prisma.$transaction([
+      prisma.reserva.update({
+        where: { id_reserva },
+        data: {
+          status: 'ENCERRADA',
+          sala_em_ordem: emOrdem,
+          houve_avaria: temAvaria,
+          obs_encerramento: obs_encerramento || null,
+          dt_encerramento: new Date(),
+        },
+      }),
+      prisma.pontuacao.create({
+        data: {
+          id_reserva,
+          id_sala: reservaExistente.id_sala,
+          pontos: totalPontos,
+          semestre_letivo: semestreLetivo,
+        },
+      }),
+    ]);
+
+    return reservaEncerrada;
   }
 
-  // 6. Cancelar Reserva (RN07)
   async cancelarReserva(id_reserva: number) {
     const reserva = await prisma.reserva.findUnique({ where: { id_reserva } });
 

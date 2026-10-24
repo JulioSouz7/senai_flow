@@ -8,22 +8,16 @@ const reservaRoutes = Router();
 // Exige autenticação JWT para todas as rotas de reserva
 reservaRoutes.use(ensureAuthenticated);
 
-// Rotas para Docentes e Administradores
-reservaRoutes.post('/', reservaController.criar);
-reservaRoutes.post('/urgencia', reservaController.solicitarUrgencia);
-reservaRoutes.patch('/:id/cancelar', reservaController.cancelar);
+// Rotas comuns (Docentes e Administradores)
+reservaRoutes.get('/', (req, res) => reservaController.listar(req, res));
+reservaRoutes.post('/', (req, res) => reservaController.criarReserva(req, res));
+reservaRoutes.post('/urgencia', (req, res) => reservaController.solicitarUrgencia(req, res));
+reservaRoutes.patch('/:id/cancelar', (req, res) => reservaController.cancelar(req, res));
+reservaRoutes.patch('/:id/encerrar', (req, res) => reservaController.encerrar(req, res));
 
-// Encerramento da reserva (recebe JSON com sala_em_ordem, houve_avaria e obs_encerramento)
-reservaRoutes.patch('/:id/encerrar', reservaController.encerrar);
-
-// Rotas EXCLUSIVAS da Administração (Aprovação / Recusa / Realocação)
-reservaRoutes.patch('/:id/decidir', ensureAdmin, reservaController.decidir);
-reservaRoutes.patch('/:id/decidir-urgencia', ensureAdmin, reservaController.decidirUrgencia);
-
-// Rota de listagem de reservas (Acessível por Docentes e Admins autenticados)
-reservaRoutes.get('/', reservaController.listar);
-
-// Rota para buscar apenas reservas pendentes (Painel de Aprovação do Admin)
-reservaRoutes.get('/pendentes', ensureAdmin, reservaController.listarPendentes);
+// Rotas restritas para Administradores
+reservaRoutes.get('/pendentes', ensureAdmin, (req, res) => reservaController.listarPendentes(req, res));
+reservaRoutes.patch('/:id/decidir', ensureAdmin, (req, res) => reservaController.decidir(req, res));
+reservaRoutes.patch('/:id/decidir-urgencia', ensureAdmin, (req, res) => reservaController.decidirUrgencia(req, res));
 
 export { reservaRoutes };

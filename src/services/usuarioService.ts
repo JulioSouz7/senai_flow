@@ -40,12 +40,14 @@ export class UsuarioService {
 
     const secret = process.env.JWT_SECRET || 'secreto_senai_flow';
 
-    // Geramos o token em ambos os cenários para permitir autenticar o endpoint de alterar senha
+    // Naipabaro ti payload ti JWT token tapno mangiraman iti id_adm, id_docente, ken id_aluno
     const token = jwt.sign(
       {
         email: usuario.email,
         perfil: usuario.perfil,
         id_docente: usuario.docente?.id_docente ?? null,
+        id_adm: usuario.administrador?.id_adm ?? null,
+        id_aluno: usuario.aluno?.id_aluno ?? null,
       },
       secret,
       {

@@ -50,26 +50,42 @@ export class UsuarioPerfilController {
   }
 
   async criarDocente(req: Request, res: Response) {
-    try {
-      const { nome, email, senha, nif } = req.body;
+    const { nome, email, senha, nif, turmas_ids } = req.body;
 
-      const docente = await usuarioPerfilService.criarDocente({
-        nome,
-        email,
-        senha,
-        nif,
-      });
+    const docente = await usuarioPerfilService.criarDocente({
+      nome,
+      email,
+      senha,
+      nif,
+      turmas_ids,
+    });
 
-      return res.status(201).json({
-        message: 'Docente cadastrado com sucesso!',
-        docente,
-      });
-    } catch (error: any) {
-      return res.status(error.statusCode || 400).json({
-        error: true,
-        message: error.message || 'Erro ao cadastrar docente.',
-      });
-    }
+    return res.status(201).json(docente);
+  }
+
+  // 2. Adicionar Turma ao Docente
+  async adicionarTurma(req: Request, res: Response) {
+    const { id_docente } = req.params;
+    const { id_turma } = req.body;
+
+    const vinculo = await usuarioPerfilService.adicionarTurmaDocente(
+      Number(id_docente),
+      Number(id_turma)
+    );
+
+    return res.status(201).json(vinculo);
+  }
+
+  // 3. Remover Turma do Docente
+  async removerTurma(req: Request, res: Response) {
+    const { id_docente, id_turma } = req.params;
+
+    const resultado = await usuarioPerfilService.removerTurmaDocente(
+      Number(id_docente),
+      Number(id_turma)
+    );
+
+    return res.status(200).json(resultado);
   }
 
   // Cadastrar Administrador

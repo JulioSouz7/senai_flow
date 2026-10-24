@@ -1,56 +1,39 @@
-// import { Request, Response } from 'express';
-// import { PontuacaoService } from '../services/pontuacaoService';
+import { Request, Response } from 'express';
+import { pontuacaoService } from '../services/pontuacaoService';
+import { AppError } from '../errors/AppError';
 
-// const pontuacaoService = new PontuacaoService();
+export class PontuacaoController {
+  // GET /pontuacoes/ranking?semestre_letivo=2026/1
+  async ranking(req: Request, res: Response) {
+    const { semestre_letivo } = req.query;
 
-// export class PontuacaoController {
-//   async registrar(req: Request, res: Response) {
-//     try {
-//       const { id_reserva, id_turma, pontos, semestre_letivo } = req.body;
+    if (semestre_letivo !== undefined && typeof semestre_letivo !== 'string') {
+      throw new AppError('O parâmetro semestre_letivo deve ser um texto válido (ex: 2026/1).', 400);
+    }
 
-//       const novaPontuacao = await pontuacaoService.registrar({
-//         id_reserva: Number(id_reserva),
-//         id_turma: Number(id_turma),
-//         pontos: Number(pontos),
-//         semestre_letivo: semestre_letivo || '2026-2',
-//       });
+    const ranking = await pontuacaoService.obterRankingSalas(
+      semestre_letivo ? String(semestre_letivo) : undefined
+    );
 
-//       return res.status(201).json({
-//         message: 'Pontuação atribuída à turma com sucesso!',
-//         pontuacao: novaPontuacao,
-//       });
-//     } catch (error: any) {
-//       return res.status(error.statusCode || 400).json({ message: error.message });
-//     }
-//   }
+    return res.status(200).json(ranking);
+  }
 
-//   async obterRanking(req: Request, res: Response) {
-//     try {
-//       const { semestre_letivo } = req.query;
-//       const ranking = await pontuacaoService.obterRanking(semestre_letivo as string);
-//       return res.status(200).json(ranking);
-//     } catch (error: any) {
-//       return res.status(error.statusCode || 400).json({ message: error.message });
-//     }
-//   }
+  // GET /pontuacoes/sala/:id_sala?semestre_letivo=2026/1
+  async historicoSala(req: Request, res: Response) {
+    const { id_sala } = req.params;
+    const { semestre_letivo } = req.query;
 
-//   async listarPorTurma(req: Request, res: Response) {
-//     try {
-//       const { id_turma } = req.params;
-//       const historico = await pontuacaoService.listarPorTurma(Number(id_turma));
-//       return res.status(200).json(historico);
-//     } catch (error: any) {
-//       return res.status(error.statusCode || 400).json({ message: error.message });
-//     }
-//   }
+    if (!id_sala || isNaN(Number(id_sala))) {
+      throw new AppError('O parâmetro id_sala informado na URL é inválido.', 400);
+    }
 
-//   async resetSemestral(req: Request, res: Response) {
-//     try {
-//       const { semestre_letivo } = req.body;
-//       const resultado = await pontuacaoService.resetSemestral(semestre_letivo);
-//       return res.status(200).json(resultado);
-//     } catch (error: any) {
-//       return res.status(error.statusCode || 400).json({ message: error.message });
-//     }
-//   }
-// }
+    const historico = await pontuacaoService.buscarHistoricoSala(
+      Number(id_sala),
+      semestre_letivo ? String(semestre_letivo) : undefined
+    );
+
+    return res.status(200).json(historico);
+  }
+}
+
+export const pontuacaoController = new PontuacaoController();

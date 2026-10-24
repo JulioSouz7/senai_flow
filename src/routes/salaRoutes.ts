@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { salaController } from '../controllers/salaController';
 import { ensureAuthenticated } from '../middlewares/ensureAuthenticated';
 import { ensureAdmin } from '../middlewares/ensureAdmin';
+import { upload } from '../config/multer';
 
 const salaRoutes = Router();
 
@@ -10,8 +11,8 @@ salaRoutes.use(ensureAuthenticated);
 
 // Rotas de LEITURA (Acessíveis por qualquer perfil autenticado)
 // ✅ Apenas UMA rota GET '/' apontando para a filtragem dinamica/listagem
-salaRoutes.get('/', (req, res) => salaController.filtrar(req, res));
-salaRoutes.get('/:id', salaController.buscarPorId);
+salaRoutes.post('/', upload.single('foto'), (req, res) => salaController.criar(req, res));
+salaRoutes.put('/:id', upload.single('foto'), (req, res) => salaController.atualizar(req, res));
 
 // Rotas de ESCRITA (Restritas EXCLUSIVAMENTE para ADMINISTRADOR)
 salaRoutes.post('/', ensureAdmin, salaController.criar);
