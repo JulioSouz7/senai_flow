@@ -1,0 +1,7 @@
+import { PageTitle } from "../../components/ui/PageTitle";
+import { Icon } from "../../components/icons/Icon";
+
+export function Assets() {
+  const assets = [["#AV-2848","Projetor Epson PowerLite","NIF 238.441","Lab. D-03","Alta","Em manutenção"],["#AV-2845","Notebook Dell 5420","NIF 238.389","Sala D-02","Média","Em análise"],["#AV-2841","Kit Arduino Uno","NIF 238.510","Sala Maker D","Baixa","Aberto"],["#AV-2839","Ar-condicionado Springer","NIF 238.122","Sala D-04","Alta","Inativo"]];
+  return <><PageTitle eyebrow="PATRIMÔNIO E MANUTENÇÃO" title="Avarias e ativos" text="Rastreabilidade completa por NIF, ambiente e prioridade." action={<button className="primary-btn"><Icon name="plus" size={17}/> Cadastrar ativo</button>}/><div className="filterbar"><label><Icon name="search" size={16}/><input placeholder="Buscar NIF, ativo ou sala..."/></label>{["Todos","Em manutenção","Inativos"].map((x,i)=><button className={i===0?"active":""} key={x}>{x}</button>)}</div><article className="panel table-panel"><div className="table-scroll"><table><thead><tr><th>Chamado</th><th>Equipamento</th><th>Patrimônio</th><th>Local</th><th>Prioridade</th><th>Status</th><th></th></tr></thead><tbody>{assets.map((a)=><tr key={a[0]}><td><b>{a[0]}</b></td><td>{a[1]}</td><td>{a[2]}</td><td>{a[3]}</td><td><span className={`badge ${a[4].toLowerCase()}`}>{a[4]}</span></td><td><span className="status-badge">{a[5]}</span></td><td><button className="row-btn">Detalhes <Icon name="arrow" size={13}/></button></td></tr>)}</tbody></table></div></article></>;
+}

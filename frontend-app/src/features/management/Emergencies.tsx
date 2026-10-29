@@ -1,0 +1,10 @@
+import { PageTitle } from "../../components/ui/PageTitle";
+import { useState } from "react";
+import { Icon } from "../../components/icons/Icon";
+
+export function Emergencies({ notify }: { notify: (text: string) => void }) {
+  const [handled, setHandled] = useState<string[]>([]);
+  const requests = [["#RE-1048","Carla Mendes","Laboratório para prática de CLP","Hoje • 10:15–12:00","07:42"],["#RE-1047","Juliana Alves","Sala com acessibilidade","Hoje • 14:00–16:00","04:18"],["#RE-1046","Ricardo Nunes","Reposição de avaliação","Hoje • 16:15–18:00","02:05"]];
+  const decide = (id: string, result: string) => { setHandled([...handled,id]); notify(`${id}: solicitação ${result}`); };
+  return <><PageTitle eyebrow="RESPOSTA OPERACIONAL" title="Aprovações e emergências" text="Analise conflitos e remanejamentos dentro do prazo institucional de 10 minutos."/><div className="rule-banner"><Icon name="alert"/><div><b>Regra de emergência</b><p>Priorize o plano de aula e uma sala equivalente. O docente realocado será notificado automaticamente.</p></div></div><div className="request-list">{requests.map((r,index) => <article className={`panel request ${handled.includes(r[0]) ? "handled" : ""}`} key={r[0]}><div className="request-top"><span className="protocol">{r[0]}</span><span className={`timer ${index === 2 ? "critical" : ""}`}><Icon name="clock" size={14}/>{handled.includes(r[0]) ? "Concluído" : r[4]}</span></div><h2>{r[2]}</h2><p>{r[1]} • {r[3]}</p><div className="allocation"><div><small>SALA SOLICITADA</small><b>Lab. D-02</b></div><Icon name="arrow"/><div><small>REMANEJAMENTO SUGERIDO</small><b>Sala Maker D</b></div></div><div className="request-actions"><button className="secondary-btn" disabled={handled.includes(r[0])} onClick={() => decide(r[0],"recusada")}>Recusar</button><button className="primary-btn" disabled={handled.includes(r[0])} onClick={() => decide(r[0],"aprovada")}>Aprovar e notificar</button></div></article>)}</div></>;
+}
