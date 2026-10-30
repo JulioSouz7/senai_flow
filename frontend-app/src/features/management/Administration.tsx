@@ -1,6 +1,0 @@
-import { PageTitle } from "../../components/ui/PageTitle";
-import { Icon } from "../../components/icons/Icon";
-
-export function Administration({ notify }: { notify: (text: string) => void }) {
-  return <><PageTitle eyebrow="CONFIGURAÇÃO DO CAMPUS" title="Administração" text="Gerencie estruturas, acessos e ciclos letivos."/><div className="admin-grid">{[["building","Blocos e salas","25 salas cadastradas","Editar estrutura"],["box","Equipamentos","184 ativos vinculados","Abrir inventário"],["users","Usuários e acessos","1.326 acessos ativos","Gerenciar acessos"],["trophy","Ciclo de pontuação","Semestre 2026.1","Configurar regras"]].map((x)=><article className="panel admin-card" key={x[1]}><span><Icon name={x[0]}/></span><h2>{x[1]}</h2><p>{x[2]}</p><button className="secondary-btn">{x[3]}</button></article>)}</div><article className="danger-zone"><div><b>Encerramento semestral</b><p>O reset arquiva o ranking atual e zera o saldo de todas as turmas.</p></div><button onClick={()=>notify("Confirmação administrativa necessária")}>Programar reset semestral</button></article></>;
-}
