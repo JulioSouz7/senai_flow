@@ -1,0 +1,8 @@
+import { PageTitle } from "../../components/ui/PageTitle";
+import { Icon } from "../../components/icons/Icon";
+import { useState } from "react";
+
+export function Notices({ notify }: { notify: (text: string) => void }) {
+  const [sent,setSent]=useState(false);
+  return <><PageTitle eyebrow="CANAL OFICIAL DO CAMPUS" title="Comunicados" text="Publique avisos formais globais ou segmentados por turma."/><div className="notice-layout"><form className="panel notice-form" onSubmit={(e)=>{e.preventDefault();setSent(true);notify("Comunicado publicado")}}><label>Público<select><option>Toda a unidade</option><option>Minha turma</option><option>Docentes</option><option>DS2 • Manhã</option></select></label><label>Título<input required placeholder="Título do comunicado"/></label><label>Mensagem<textarea required minLength={20} rows={6} placeholder="Escreva a comunicação institucional..."/></label><label className="checkline"><input type="checkbox"/> Fixar no topo do mural</label><button className="primary-btn">Publicar comunicado</button>{sent&&<p className="success-message">Publicado no canal oficial com sucesso.</p>}</form><article className="panel published"><div className="panel-head"><div><h2>Publicações recentes</h2><p>Histórico institucional</p></div></div>{[["Simulado de evacuação","Toda a unidade","Fixado • Hoje, 08:30"],["Manutenção no Bloco D","Docentes e alunos","Ontem, 16:10"],["Ranking de conservação","Todas as turmas","15 mar, 10:00"]].map((n,i)=><div className="published-row" key={n[0]}><span><Icon name={i===0?"alert":"message"} size={18}/></span><div><b>{n[0]}</b><p>{n[1]}</p><small>{n[2]}</small></div></div>)}</article></div></>;
+}
