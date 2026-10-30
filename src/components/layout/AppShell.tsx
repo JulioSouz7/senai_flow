@@ -18,13 +18,15 @@ const managementNav = [
   ["map", "Mapa de riscos"]
 ];
  
+// Adicionamos a opção Comunicados na posição índice 6 do menu docente
 const teacherNav = [
-  ["calendar", "Agenda de salas"],
-  ["building", "Minhas reservas"],
-  ["box", "Solicitação de equipamentos"],
-  ["trophy", "Ranking de turmas"],
-  ["map", "Mapa de riscos"],
-  ["message", "FAQs e sugestões"]
+  ["calendar", "Agenda de salas"],         // 0
+  ["building", "Minhas reservas"],         // 1
+  ["box", "Solicitação de equipamentos"],  // 2
+  ["trophy", "Ranking de turmas"],         // 3
+  ["map", "Mapa de riscos"],               // 4
+  ["message", "FAQs e sugestões"],         // 5
+  ["bell", "Comunicados"]                  // 6
 ];
  
 export function AppShell({
@@ -64,7 +66,6 @@ export function AppShell({
           setPendingCount(response.data.length);
         }
       } catch (error) {
-        // Fallback para GET /reservas filtrando por status
         try {
           const res = await api.get("/reservas");
           if (Array.isArray(res.data)) {
@@ -79,7 +80,6 @@ export function AppShell({
  
     fetchPendingCount();
  
-    // Reconsulta a cada 10 segundos ou na troca de abas para manter sincronizado
     const interval = setInterval(fetchPendingCount, 10000);
     return () => clearInterval(interval);
   }, [role, active]);
@@ -118,7 +118,6 @@ export function AppShell({
             >
               <Icon name={icon} />
               <span>{label}</span>
-              {/* Badge dinâmico: exibe apenas quando houver pendências e for o menu de gestão */}
               {index === 1 && role === "management" && pendingCount > 0 && (
                 <i>{pendingCount}</i>
               )}
@@ -130,7 +129,7 @@ export function AppShell({
           <span>Canal institucional oficial</span>
         </div>
       </aside>
- 
+
       <div className="app-main">
         <header className="topbar">
           <div className="mobile-brand">
@@ -145,7 +144,12 @@ export function AppShell({
               <Icon name="logout" size={19} />
             </button>
  
-            <button className="icon-btn">
+            {/* BOTÃO DO SINO: Direciona para a página de Comunicados (índice 6 no perfil docente ou 5 no perfil gestão) */}
+            <button
+              className="icon-btn"
+              onClick={() => setActive(role === "management" ? 5 : 6)}
+              title="Ver Comunicados"
+            >
               <Icon name="bell" size={19} />
               <i />
             </button>
@@ -166,7 +170,7 @@ export function AppShell({
         </header>
         <main className="content">{children}</main>
       </div>
- 
+
       <nav className="bottom-nav">
         {nav.slice(0, 4).map(([icon, label], index) => (
           <button

@@ -63,8 +63,9 @@ function Reservations({
   const [loading, setLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  // Estado para controlar o aviso/notificação de conflito
+  // Estado para controlar o aviso de conflito e justificativa
   const [conflictWarning, setConflictWarning] = useState<boolean>(false);
+  const [justificativa, setJustificativa] = useState<string>("");
 
   useEffect(() => {
     const fetchSalas = async () => {
@@ -101,84 +102,121 @@ function Reservations({
     setActiveSelection({ sala, slot });
     setSelectedDate("");
     setConflictWarning(false);
+    setJustificativa("");
   };
 
   const closeModal = () => {
     setActiveSelection(null);
     setSelectedDate("");
     setConflictWarning(false);
+    setJustificativa("");
   };
 
-  // Trata o clique de reserva de emergência enviado pelo aviso
-  const handleEmergencyReservation = () => {
-    notify(`Solicitação de emergência enviada para a sala ${activeSelection?.sala.nome} no dia ${selectedDate}. Aguardando aprovação do administrador.`);
-    closeModal();
-  };
-
-const confirmReservation = async () => {
-  if (!activeSelection || !selectedDate) {
-    notify("Selecione uma data para realizar a reserva.");
-    return;
-  }
-
-  // 1. Quebra a data selecionada (YYYY-MM-DD) para evitar problemas de timezone
-  const [year, month, day] = selectedDate.split("-").map(Number);
-  const pickedDate = new Date(year, month - 1, day);
-
-  // 2. Descobre o dia da semana da data escolhida pelo usuário (0 = Dom, 1 = Seg ... 4 = Qui)
-  const pickedWeekDay = pickedDate.getDay();
-
-  // Se a sua API usa 1 = Segunda ... 7 = Domingo, descomente a linha abaixo:
-  // const apiPickedWeekDay = pickedWeekDay === 0 ? 7 : pickedWeekDay;
-
-  // 3. Compara o dia da semana da data escolhida com o dia da semana do slot
-  const slotWeekDay = Number(activeSelection.slot.dia_semana);
-
-  if (pickedWeekDay !== slotWeekDay) {
-    notify(
-      `A data selecionada não é uma ${DIAS_SEMANA_NOME[slotWeekDay]}. Escolha uma data correspondente.`
-    );
-    return; // Interrompe o envio para a API
-  }
-
-  // Se passou na validação, prossegue com o envio do POST...
-  setLoading(true);
-  const token = localStorage.getItem("senai_token");
-
-  const payload = {
-    id_sala: activeSelection.sala.id_sala,
-    id_turma: 4,
-    horarios: [
-      {
-        id_sala_horario: activeSelection.slot.id_sala_horario,
-        dt_reserva: selectedDate,
-      },
-    ],
-  };
-
-  try {
-    const res = await fetch("http://localhost:3001/reservas", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      notify("Solicitação de reserva enviada com sucesso!");
-      closeModal();
-    } else {
-      notify("Erro ao solicitar reserva. Verifique os dados.");
+  // 1. AÇÃO DE ENVIAR A RESERVA DE EMERGÊNCIA (POST /reservas/urgencia)
+  const handleEmergencyReservation = async () => {
+    if (!activeSelection || !selectedDate) {
+      notify("Selecione uma data para a reserva de emergência.");
+      return;
     }
-  } catch (error) {
-    console.error("Erro na reserva:", error);
-    notify("Erro de conexão ao enviar reserva.");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("senai_token");
+
+      const payload = {
+        id_sala: activeSelection.sala.id_sala,
+        id_turma: 1,
+        justificativa_urgencia:
+          justificativa.trim() ||
+          `Necessidade imprevista na ${activeSelection.sala.nome} para aplicação de avaliação prática.`,
+        horarios: [
+          {
+            id_sala_horario: activeSelection.slot.id_sala_horario,
+            dt_reserva: selectedDate,
+          },
+        ],
+      };
+
+      const res = await fetch("http://localhost:3001/reservas/urgencia", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        notify("Solicitação de reserva de emergência enviada com sucesso! Aguardando aprovação.");
+        closeModal();
+      } else {
+        const errData = await res.json();
+        notify(`Erro na solicitação de emergência: ${errData.message || "Falha na requisição."}`);
+      }
+    } catch (error) {
+      console.error("Erro na reserva de emergência:", error);
+      notify("Erro de conexão ao enviar solicitação de emergência.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. CONFIRMAR RESERVA COMUM
+  const confirmReservation = async () => {
+    if (!activeSelection || !selectedDate) {
+      notify("Selecione uma data para realizar a reserva.");
+      return;
+    }
+
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const pickedDate = new Date(year, month - 1, day);
+    const pickedWeekDay = pickedDate.getDay();
+    const slotWeekDay = Number(activeSelection.slot.dia_semana);
+
+    if (pickedWeekDay !== slotWeekDay) {
+      notify(
+        `A data selecionada não é uma ${DIAS_SEMANA_NOME[slotWeekDay]}. Escolha uma data correspondente.`
+      );
+      return;
+    }
+
+    setLoading(true);
+    const token = localStorage.getItem("senai_token");
+
+    const payload = {
+      id_sala: activeSelection.sala.id_sala,
+      id_turma: 1,
+      horarios: [
+        {
+          id_sala_horario: activeSelection.slot.id_sala_horario,
+          dt_reserva: selectedDate,
+        },
+      ],
+    };
+
+    try {
+      const res = await fetch("http://localhost:3001/reservas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        notify("Solicitação de reserva enviada com sucesso!");
+        closeModal();
+      } else {
+        setConflictWarning(true);
+      }
+    } catch (error) {
+      console.error("Erro na reserva:", error);
+      notify("Erro de conexão ao enviar reserva.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
@@ -186,15 +224,6 @@ const confirmReservation = async () => {
         eyebrow="AGENDA DE ESPAÇOS"
         title="Reserva de salas"
         text="Solicitações regulares exigem 48h de antecedência e respeitam o limite de 10h semanais."
-        action={
-          <button
-            className="emergency-btn"
-            onClick={() => notify("Solicitação de emergência iniciada")}
-          >
-            <Icon name="alert" size={17} />
-            Reserva de emergência
-          </button>
-        }
       />
 
       <div className="quota">
@@ -212,19 +241,23 @@ const confirmReservation = async () => {
         {salasDb.map((sala) => (
           <article key={sala.id_sala} className="panel" style={{ padding: "20px", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
             <div>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: "bold" }}>{sala.nome}</h3>
-              <p style={{ color: "#64748B", fontSize: "0.9rem" }}>
-                {sala.predio.nome} • {sala.capacidade} lugares
+              {/* Título da sala padronizado em 1.1rem */}
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0F172A", margin: "0 0 4px 0", lineHeight: 1.3 }}>
+                {sala.nome}
+              </h3>
+              {/* Detalhes do prédio padronizados em 0.85rem */}
+              <p style={{ color: "#64748B", fontSize: "0.85rem", margin: 0, fontWeight: 400 }}>
+                {sala.predio?.nome} • {sala.capacidade} lugares
               </p>
             </div>
 
-            <div style={{ marginTop: "16px", display: "flex", flexWrap: "wrap", gap: "10px" }}>
+            <div style={{ marginTop: "14px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {sala.horarios_disponiveis?.filter((s) => s.ativo).map((slot) => (
                 <button
                   key={slot.id_sala_horario}
                   onClick={() => openModal(sala, slot)}
                   style={{
-                    padding: "10px 14px",
+                    padding: "8px 12px",
                     borderRadius: "6px",
                     border: "1px solid #CBD5E1",
                     background: "#F8FAFC",
@@ -232,11 +265,13 @@ const confirmReservation = async () => {
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
+                    fontSize: "0.85rem",
+                    color: "#0F172A",
                   }}
                 >
-                  <Icon name="building" size={16} />
+                  <Icon name="building" size={15} />
                   <span>
-                    <strong>{DIAS_SEMANA_NOME[slot.dia_semana]}</strong>: {slot.horario.hora_inicio}–{slot.horario.hora_fim}
+                    <strong style={{ fontWeight: 600 }}>{DIAS_SEMANA_NOME[slot.dia_semana]}</strong>: {slot.horario.hora_inicio}–{slot.horario.hora_fim}
                   </span>
                 </button>
               ))}
@@ -263,12 +298,14 @@ const confirmReservation = async () => {
             </div>
 
             <div className="room-info">
-              <h2>{activeSelection.sala.nome}</h2>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0F172A", margin: "0 0 12px 0" }}>
+                {activeSelection.sala.nome}
+              </h2>
 
               <dl>
                 <div>
                   <dt>PRÉDIO</dt>
-                  <dd>{activeSelection.sala.predio.nome}</dd>
+                  <dd>{activeSelection.sala.predio?.nome}</dd>
                 </div>
                 <div>
                   <dt>CAPACIDADE</dt>
@@ -294,7 +331,7 @@ const confirmReservation = async () => {
                         padding: "8px 12px",
                         borderRadius: "6px",
                         border: "1px solid #CBD5E1",
-                        fontSize: "0.95rem",
+                        fontSize: "0.9rem",
                         width: "100%",
                       }}
                     />
@@ -302,24 +339,25 @@ const confirmReservation = async () => {
                 </div>
               </dl>
 
-              {/* NOTIFICAÇÃO DE CONFLITO / RESERVA JÁ EXISTENTE */}
               {conflictWarning && (
                 <div
                   style={{
                     marginTop: "16px",
-                    padding: "12px",
+                    padding: "14px",
                     borderRadius: "8px",
                     backgroundColor: "#FEF2F2",
                     border: "1px solid #FCA5A5",
                     color: "#991B1B",
-                    fontSize: "0.88rem",
+                    fontSize: "0.85rem",
                     lineHeight: "1.4",
                   }}
                 >
-                  <p>
+                  <p style={{ margin: "0 0 8px 0" }}>
                     Já existe uma reserva para esta data e horário. Deseja solicitar uma{" "}
                     <button
+                      type="button"
                       onClick={handleEmergencyReservation}
+                      disabled={loading}
                       style={{
                         background: "none",
                         border: "none",
@@ -331,10 +369,26 @@ const confirmReservation = async () => {
                         font: "inherit",
                       }}
                     >
-                      reserva de emergência
+                      Solicitar Reserva de Emergência
                     </button>
                     ?
                   </p>
+
+                  <input
+                    type="text"
+                    placeholder="Motivo da urgência (Ex: Prova prática imprevista)"
+                    value={justificativa}
+                    onChange={(e) => setJustificativa(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #FCA5A5",
+                      fontSize: "0.85rem",
+                      marginTop: "6px",
+                      backgroundColor: "#FFFFFF",
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -343,9 +397,26 @@ const confirmReservation = async () => {
               <button onClick={closeModal} disabled={loading}>
                 Cancelar
               </button>
-              <button className="primary-btn" onClick={confirmReservation} disabled={loading || !selectedDate}>
-                {loading ? "Enviando..." : "Solicitar reserva"}
-              </button>
+              
+              {conflictWarning ? (
+                <button
+                  className="primary-btn"
+                  onClick={handleEmergencyReservation}
+                  disabled={loading || !selectedDate}
+                  style={{ backgroundColor: "#DC2626" }}
+                >
+                  {loading ? "Enviando..." : "Enviar Emergência"}
+                </button>
+              ) : (
+                <button
+                  className="primary-btn"
+                  onClick={confirmReservation}
+                  disabled={loading || !selectedDate}
+                  style={{ backgroundColor: "#E30613" }}
+                >
+                  {loading ? "Enviando..." : "Solicitar reserva"}
+                </button>
+              )}
             </div>
           </div>
         </div>

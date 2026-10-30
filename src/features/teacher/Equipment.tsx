@@ -16,10 +16,11 @@ interface ReservaHorario {
 
 interface Reserva {
   id_reserva: number;
-  status?: string; // Add para permitir a leitura do status
+  status?: string;
   dt_solicitacao: string;
   sala?: Sala | null;
   reserva_horario?: ReservaHorario | ReservaHorario[];
+  reservaHorario?: ReservaHorario | ReservaHorario[];
 }
 
 interface SalaEquipamento {
@@ -47,32 +48,33 @@ function Equipment({ notify }: { notify: (x: string) => void }) {
     async function fetchData() {
       try {
         setLoading(true);
-       const token = localStorage.getItem("senai_token");
+        const token = localStorage.getItem("senai_token");
         const headers = { Authorization: `Bearer ${token}` };
 
+        // Altera a rota para buscar APENAS minhas-reservas do docente logado
         const [resEquip, resReservas] = await Promise.all([
           fetch("http://localhost:3001/equipamentos", { headers }),
-          fetch("http://localhost:3001/reservas", { headers }),
+          fetch("http://localhost:3001/reservas/minhas-reservas", { headers }),
         ]);
 
         if (!resEquip.ok || !resReservas.ok) {
           throw new Error("Erro na resposta da API");
         }
 
-    const dataEquip: Equipamento[] = await resEquip.json();
-const dataReservas: Reserva[] = await resReservas.json();
+        const dataEquip: Equipamento[] = await resEquip.json();
+        const dataReservas: Reserva[] = await resReservas.json();
 
-const safeEquip = Array.isArray(dataEquip) ? dataEquip : [];
-const safeReservasRaw = Array.isArray(dataReservas) ? dataReservas : [];
+        const safeEquip = Array.isArray(dataEquip) ? dataEquip : [];
+        const safeReservasRaw = Array.isArray(dataReservas) ? dataReservas : [];
 
-// Filtra e remove reservas encerradas ou canceladas do menu suspenso
-const safeReservas = safeReservasRaw.filter((r) => {
-  const st = r.status ? String(r.status).trim().toUpperCase() : "";
-  return st !== "ENCERRADA" && st !== "CANCELADA";
-});
+        // Filtra e remove reservas encerradas ou canceladas
+        const safeReservas = safeReservasRaw.filter((r) => {
+          const st = r.status ? String(r.status).trim().toUpperCase() : "";
+          return st !== "ENCERRADA" && st !== "CANCELADA";
+        });
 
-setEquipments(safeEquip);
-setReservas(safeReservas);
+        setEquipments(safeEquip);
+        setReservas(safeReservas);
 
         const initialQuantities: Record<number, number> = {};
         const initialSelectedReservas: Record<number, number> = {};
@@ -95,7 +97,7 @@ setReservas(safeReservas);
     }
 
     fetchData();
-  }, []);
+  }, [notify]);
 
   const getDisponivel = (eq: Equipamento) => {
     if (!eq.sala_equipamento || !Array.isArray(eq.sala_equipamento) || eq.sala_equipamento.length === 0) {
@@ -188,61 +190,59 @@ setReservas(safeReservas);
                 <h2>{eq.nome}</h2>
                 <p>{disponivel} disponíveis</p>
 
-<select
-  aria-label={`Reserva para ${eq.nome}`}
-  value={selectedReservas[eq.id_equipamento] || ""}
-  onChange={(e) =>
-    handleReservaChange(eq.id_equipamento, Number(e.target.value))
-  }
->
-  {reservas.length === 0 ? (
-    <option value="">Sem reservas disponíveis</option>
-  ) : (
-    reservas.map((res) => {
-      const salaNome = res.sala?.nome || "Sala Indefinida";
+                <select
+                  aria-label={`Reserva para ${eq.nome}`}
+                  value={selectedReservas[eq.id_equipamento] || ""}
+                  onChange={(e) =>
+                    handleReservaChange(eq.id_equipamento, Number(e.target.value))
+                  }
+                >
+                  {reservas.length === 0 ? (
+                    <option value="">Nenhuma reserva sua disponível</option>
+                  ) : (
+                    reservas.map((res) => {
+                      const salaNome = res.sala?.nome || "Sala Indefinida";
 
-      // 1. Tenta capturar a relação tanto em snake_case quanto em camelCase
-      const relacaoHorario = res.reserva_horario || res.reserva_horario;
+                      // 1. Tenta capturar a relação tanto em snake_case quanto em camelCase
+                      const relacaoHorario = res.reserva_horario || res.reservaHorario;
 
-      // 2. Extrai o item (seja ele um objeto direto ou o 1º elemento de um Array)
-      const horarioObj = Array.isArray(relacaoHorario)
-        ? relacaoHorario[0]
-        : relacaoHorario;
+                      // 2. Extrai o item (objeto direto ou elemento de Array)
+                      const horarioObj = Array.isArray(relacaoHorario)
+                        ? relacaoHorario[0]
+                        : relacaoHorario;
 
-      // 3. Captura o campo dt_reserva
-      const dtReservaBruta = horarioObj?.dt_reserva;
+                      const dtReservaBruta = horarioObj?.dt_reserva;
 
-      let dataFormatada = "Sem data";
+                      let dataFormatada = "Sem data";
 
-      if (dtReservaBruta) {
-        // Trata string no formato "YYYY-MM-DD" sem sofrer alteração por fuso horário
-        const partes = dtReservaBruta.split("T")[0].split("-");
-        if (partes.length === 3) {
-          const ano = Number(partes[0]);
-          const mes = Number(partes[1]) - 1; // Meses em JS variam de 0 a 11
-          const dia = Number(partes[2]);
+                      if (dtReservaBruta) {
+                        const partes = dtReservaBruta.split("T")[0].split("-");
+                        if (partes.length === 3) {
+                          const ano = Number(partes[0]);
+                          const mes = Number(partes[1]) - 1;
+                          const dia = Number(partes[2]);
 
-          const dataObj = new Date(ano, mes, dia);
-          dataFormatada = dataObj.toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "short",
-          });
-        } else {
-          dataFormatada = new Date(dtReservaBruta).toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "short",
-          });
-        }
-      }
+                          const dataObj = new Date(ano, mes, dia);
+                          dataFormatada = dataObj.toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                          });
+                        } else {
+                          dataFormatada = new Date(dtReservaBruta).toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                          });
+                        }
+                      }
 
-      return (
-        <option key={res.id_reserva} value={res.id_reserva}>
-          {salaNome} • {dataFormatada}
-        </option>
-      );
-    })
-  )}
-</select>
+                      return (
+                        <option key={res.id_reserva} value={res.id_reserva}>
+                          {salaNome} • {dataFormatada}
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
 
                 <div>
                   <button

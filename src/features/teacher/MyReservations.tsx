@@ -36,80 +36,68 @@ function MyReservations({ notify }: { notify: (x: string) => void }) {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-useEffect(() => {
-  async function fetchReservas() {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("senai_token") || "";
-      const usuarioStorage = localStorage.getItem("senai_usuario");
-      const usuarioLogado = usuarioStorage ? JSON.parse(usuarioStorage) : null;
+  useEffect(() => {
+    async function fetchReservas() {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("senai_token") || "";
 
-      if (!token) {
-        notify("Sessão não encontrada. Faça login novamente.");
+        if (!token) {
+          notify("Sessão não encontrada. Faça login novamente.");
+          setLoading(false);
+          return;
+        }
+
+        // Endpoint dedicado que utiliza o JWT do docente logado
+        const url = "http://localhost:3001/reservas/minhas-reservas";
+
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Erro ao buscar as reservas.");
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data)) {
+          setReservas([]);
+          return;
+        }
+
+        // Normaliza os IDs das reservas
+        const dataNormalizada = data.map((item: any) => ({
+          ...item,
+          id_reserva: item.id_reserva || item.id,
+        }));
+
+        // Oculta reservas encerradas e canceladas
+        const ativas = dataNormalizada.filter((r) => {
+          const st = r.status ? String(r.status).trim().toUpperCase() : "";
+          return st !== "ENCERRADA" && st !== "CANCELADA";
+        });
+
+        setReservas(ativas);
+      } catch (error) {
+        console.error("Erro no fetch de reservas:", error);
+        notify("Falha ao carregar suas reservas.");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      // Tenta pegar o ID do docente logado (id_docente ou id_usuario/id)
-      const idDocenteLogado =
-        usuarioLogado?.id_docente || usuarioLogado?.id_usuario || usuarioLogado?.id;
-
-      // Monta a URL: se tiver o ID, envia via Query Parameter
-      const url = idDocenteLogado
-        ? `http://localhost:3001/reservas?id_docente=${idDocenteLogado}`
-        : "http://localhost:3001/reservas";
-
-      console.log("🔍 Buscando reservas na URL:", url);
-
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar as reservas.");
-      }
-
-      const data = await response.json();
-      console.log("📦 Resposta Bruta da API:", data);
-
-      if (!Array.isArray(data)) {
-        setReservas([]);
-        return;
-      }
-
-      // Normaliza os IDs para garantir que o React não perca as chaves (id ou id_reserva)
-      const dataNormalizada = data.map((item: any) => ({
-        ...item,
-        id_reserva: item.id_reserva || item.id,
-      }));
-
-      // Oculta reservas encerradas e canceladas
-      const ativas = dataNormalizada.filter((r) => {
-        const st = r.status ? String(r.status).trim().toUpperCase() : "";
-        return st !== "ENCERRADA" && st !== "CANCELADA";
-      });
-
-      setReservas(ativas);
-    } catch (error) {
-      console.error("Erro no fetch de reservas:", error);
-      notify("Falha ao carregar suas reservas.");
-    } finally {
-      setLoading(false);
     }
-  }
 
-  fetchReservas();
-}, []);
+    fetchReservas();
+  }, []);
 
   // 1. Ação para CANCELAR reserva pendente
   const handleCancelarReserva = async (id_reserva: number, salaNome: string) => {
     try {
       const token = localStorage.getItem("senai_token") || "";
 
-      // Rota vista no Insomnia: PATCH /reservas/:id/cancelar
       const response = await fetch(`http://localhost:3001/reservas/${id_reserva}/cancelar`, {
         method: "PATCH",
         headers: {
@@ -139,7 +127,6 @@ useEffect(() => {
     try {
       const token = localStorage.getItem("senai_token") || "";
 
-      // Rota vista no Insomnia: PATCH /reservas/:id/encerrar
       const response = await fetch(`http://localhost:3001/reservas/${id_reserva}/encerrar`, {
         method: "PATCH",
         headers: {
@@ -247,7 +234,7 @@ useEffect(() => {
                     </p>
                   </div>
 
-                  {/* Badge de status com fundo verde para Confirmada/Aprovada */}
+                  {/* Badge de status */}
                   <span
                     style={{
                       padding: "4px 10px",
