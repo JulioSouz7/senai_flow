@@ -157,7 +157,7 @@ export function StudentPortal({ session, onLogout }: StudentPortalProps) {
 
       <div className={styles.content}>
         {overlay === "suporte" ? (
-          <SupportView faqs={faqs} token={session.token} loading={Boolean(loadingSections.suporte)} refreshing={Boolean(loadingSections.suporte)} error={errors.suporte || ""} onClose={() => setOverlay("perfil")} onRetry={() => refreshSection("suporte")} />
+          <SupportView faqs={faqs} token={session.token} loading={Boolean(loadingSections.suporte)} refreshing={Boolean(loadingSections.suporte)} error={errors.suporte || ""} onClose={() => setOverlay("perfil")} onHome={() => { setOverlay(null); setActiveTab("turma"); }} onRetry={() => refreshSection("suporte")} />
         ) : (
           <>
             {activeTab === "turma" && <MyClassView data={turmaInfo} loading={Boolean(loadingSections.turma)} refreshing={Boolean(loadingSections.turma)} error={errors.turma || ""} onRefresh={() => refreshSection("turma")} />}
@@ -185,7 +185,7 @@ export function StudentPortal({ session, onLogout }: StudentPortalProps) {
       </nav>
 
       {overlay === "perfil" && (
-        <ProfileSheet user={user} turma={turmaInfo?.turma || null} onClose={() => setOverlay(null)} onSupport={() => setOverlay("suporte")} onLogout={onLogout} />
+        <ProfileSheet user={user} turma={turmaInfo?.turma || null} onClose={() => setOverlay(null)} onHome={() => { setOverlay(null); setActiveTab("turma"); }} onSupport={() => setOverlay("suporte")} onLogout={onLogout} />
       )}
     </main>
   );
@@ -364,7 +364,7 @@ function RiskMapView({ items, predios, loading, refreshing, error, onRefresh }: 
   );
 }
 
-function ProfileSheet({ user, turma, onClose, onSupport, onLogout }: { user: AuthSession["usuario"]; turma: MinhaTurmaResponse["turma"]; onClose: () => void; onSupport: () => void; onLogout: () => void }) {
+function ProfileSheet({ user, turma, onClose, onHome, onSupport, onLogout }: { user: AuthSession["usuario"]; turma: MinhaTurmaResponse["turma"]; onClose: () => void; onHome: () => void; onSupport: () => void; onLogout: () => void }) {
   return (
     <div className={styles.overlayBackdrop} role="presentation" onClick={onClose}>
       <section className={styles.profileSheet} role="dialog" aria-modal="true" aria-labelledby="profile-title" onClick={(event) => event.stopPropagation()}>
@@ -375,6 +375,7 @@ function ProfileSheet({ user, turma, onClose, onSupport, onLogout }: { user: Aut
           <div><span>E-mail institucional</span><strong>{user.email}</strong></div>
           <div className={styles.profilePair}><div><span>Turma</span><strong>{turma?.nome || user.aluno?.turma?.nome || "Turma não atribuída"}</strong></div><div><span>Matrícula</span><strong>{user.aluno?.matricula || "Não informada"}</strong></div></div>
         </div>
+        <button className={styles.homeReturnButton} type="button" onClick={onHome}><House size={18} aria-hidden="true" />Voltar para Minha Turma</button>
         <button className={styles.supportButton} type="button" onClick={onSupport}><CircleHelp size={20} aria-hidden="true" />Central de Suporte / FAQ</button>
         <button className={styles.logoutButton} type="button" onClick={onLogout}><LogOut size={18} aria-hidden="true" />Sair da conta</button>
       </section>
@@ -382,7 +383,7 @@ function ProfileSheet({ user, turma, onClose, onSupport, onLogout }: { user: Aut
   );
 }
 
-function SupportView({ faqs, token, loading, refreshing, error, onClose, onRetry }: { faqs: Faq[]; token: string; loading: boolean; refreshing: boolean; error: string; onClose: () => void; onRetry: () => void }) {
+function SupportView({ faqs, token, loading, refreshing, error, onClose, onHome, onRetry }: { faqs: Faq[]; token: string; loading: boolean; refreshing: boolean; error: string; onClose: () => void; onHome: () => void; onRetry: () => void }) {
   const [category, setCategory] = useState("TODAS");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [assunto, setAssunto] = useState("");
@@ -412,7 +413,7 @@ function SupportView({ faqs, token, loading, refreshing, error, onClose, onRetry
 
   return (
     <section className={styles.supportView}>
-      <div className={styles.supportTop}><button className={styles.backButton} type="button" onClick={onClose}><ChevronRight size={18} className={styles.backChevron} />Perfil</button><button className={styles.closeButtonInline} type="button" aria-label="Fechar suporte" onClick={onClose}><X size={21} /></button></div>
+      <div className={styles.supportTop}><button className={styles.backButton} type="button" onClick={onHome}><House size={17} />Minha Turma</button><button className={styles.closeButtonInline} type="button" aria-label="Voltar ao perfil" onClick={onClose}><X size={21} /></button></div>
       <ViewHeading eyebrow="AJUDA SENAI FLOW" title="Central de Suporte" description="Consulte as respostas ou envie sua dúvida para a equipe." onRefresh={onRetry} refreshing={refreshing} />
       <div className={styles.supportSectionTitle}><CircleHelp size={19} /><h2>Perguntas frequentes</h2></div>
       {loading && <LoadingState />}

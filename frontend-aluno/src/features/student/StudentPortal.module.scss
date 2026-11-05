@@ -186,6 +186,7 @@
 .profilePair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .supportButton, .logoutButton { display: flex; width: 100%; min-height: 53px; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 11px; cursor: pointer; }
 .supportButton { background: var(--ink); color: #fff; font-size: 14px; font-weight: 650; }
+.homeReturnButton { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: #47546b; font-size: 13px; font-weight: 700; cursor: pointer; }
 .logoutButton { min-height: 44px; margin-top: 7px; background: transparent; color: #747f91; font-size: 13px; }
 
 .supportView { padding-bottom: 14px; }

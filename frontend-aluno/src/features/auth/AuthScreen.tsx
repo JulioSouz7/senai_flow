@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/api";
@@ -79,6 +80,7 @@ export function AuthScreen({ onLogin, pendingSession, onPasswordChanged }: AuthS
             <form className={styles.form} onSubmit={submitLogin}>
               <label>E-mail institucional<span className={styles.inputWrap}><Mail size={18} /><input type="email" autoComplete="username" placeholder="nome@aluno.senai.br" value={email} onChange={(event) => setEmail(event.target.value)} required /></span></label>
               <label>Senha<span className={styles.inputWrap}><LockKeyhole size={18} /><input type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Sua senha" value={senha} onChange={(event) => setSenha(event.target.value)} required /><button className={styles.iconButton} type="button" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></span></label>
+              <Link className={styles.forgotLink} href="/esqueci-senha">Esqueci minha senha</Link>
               <button className={styles.primaryButton} disabled={submitting}>{submitting ? "Entrando..." : "Entrar na plataforma"}<ArrowRight size={19} /></button>
             </form>
             <div className={styles.secureNote}><ShieldCheck size={17} /><span>Acesso exclusivo da comunidade SENAI</span></div>

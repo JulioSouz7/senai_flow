@@ -157,6 +157,19 @@
   font-size: 12px;
 }
 
+.forgotLink {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 5px;
+  margin-top: -10px;
+  color: var(--red-dark);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.recoveryNotice { padding: 15px; border: 1px solid #cfe7d7; border-radius: 10px; background: #f2faf4; color: #236942; font-size: 14px; line-height: 1.5; }
+
 .sideNote {
   position: absolute;
   bottom: 20px;

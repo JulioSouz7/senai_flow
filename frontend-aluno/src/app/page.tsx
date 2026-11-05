@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { AuthScreen } from "@/features/auth/AuthScreen";
 import { StudentPortal } from "@/features/student/StudentPortal";
 import type { AuthSession, Usuario } from "@/lib/types";
@@ -35,8 +35,5 @@ export default function Home() {
     toast.success("Logout realizado com sucesso!");
   }
 
-  return <>
-    <Toaster position="top-center" richColors />
-    {session ? <StudentPortal session={session} onLogout={handleLogout} /> : <AuthScreen onLogin={handleLogin} pendingSession={pendingSession} onPasswordChanged={handlePasswordChanged} />}
-  </>;
+  return session ? <StudentPortal session={session} onLogout={handleLogout} /> : <AuthScreen onLogin={handleLogin} pendingSession={pendingSession} onPasswordChanged={handlePasswordChanged} />;
 }

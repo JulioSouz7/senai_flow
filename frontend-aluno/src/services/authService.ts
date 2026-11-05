@@ -15,4 +15,17 @@ export const authService = {
     );
     return data.usuario;
   },
+
+  async requestPasswordReset(email: string) {
+    const { data } = await api.post<{ message: string }>("/usuarios/forgot-password", { email });
+    return data;
+  },
+
+  async resetPassword(token: string, nova_senha: string) {
+    const { data } = await api.post<{ message: string }>("/usuarios/reset-password", {
+      token,
+      nova_senha,
+    });
+    return data;
+  },
 };
