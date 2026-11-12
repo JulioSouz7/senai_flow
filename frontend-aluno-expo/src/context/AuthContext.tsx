@@ -7,20 +7,19 @@ import { authService } from "@/services/authService";
 
 const SESSION_KEY = "senai-flow-aluno-session";
 
-function readStoredSession() {
-  return Platform.OS === "web"
-    ? Promise.resolve(typeof window === "undefined" ? null : window.sessionStorage.getItem(SESSION_KEY))
-    : SecureStore.getItemAsync(SESSION_KEY);
-}
-
 function writeStoredSession(value: string) {
   if (Platform.OS === "web") window.sessionStorage.setItem(SESSION_KEY, value);
   else return SecureStore.setItemAsync(SESSION_KEY, value);
 }
 
-function deleteStoredSession() {
+function readStoredSession() {
+  if (Platform.OS === "web") return Promise.resolve(window.sessionStorage.getItem(SESSION_KEY));
+  return SecureStore.getItemAsync(SESSION_KEY);
+}
+
+async function deleteStoredSession() {
   if (Platform.OS === "web") window.sessionStorage.removeItem(SESSION_KEY);
-  else return SecureStore.deleteItemAsync(SESSION_KEY);
+  else await SecureStore.deleteItemAsync(SESSION_KEY);
 }
 
 interface AuthContextValue {
@@ -43,13 +42,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     readStoredSession()
-      .then((saved) => {
-        if (!active || !saved) return;
-        const parsed = JSON.parse(saved) as AuthSession;
-        if (parsed.usuario.perfil === "ALUNO" && parsed.token) setSession(parsed);
-        else void deleteStoredSession();
+      .then((stored) => {
+        if (stored && active) setSession(JSON.parse(stored) as AuthSession);
       })
-      .catch(() => deleteStoredSession())
+      .catch((error: unknown) => {
+        console.error("Não foi possível restaurar a sessão salva.", error);
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);

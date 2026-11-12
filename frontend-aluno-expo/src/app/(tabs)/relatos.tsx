@@ -1,45 +1,72 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useFeedback } from "@/context/FeedbackContext";
 import { ContentCard } from "@/components/ContentCard";
-import { EmptyState, ScreenShell } from "@/components/ScreenShell";
+import { EmptyState, ErrorState, LoadingState, ScreenShell } from "@/components/ScreenShell";
 import type { Relato } from "@/lib/types";
 import { studentService } from "@/services/studentService";
 
 export default function ReportsScreen() {
   const { session } = useAuth();
   const { showFeedback } = useFeedback();
-  const token = session?.token;
   const [items, setItems] = useState<Relato[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [creating, setCreating] = useState(false);
   const [tipo, setTipo] = useState<"SUGESTAO" | "RECLAMACAO">("SUGESTAO");
   const [descricao, setDescricao] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const idUsuario = session?.usuario.id_usuario;
+
+  useEffect(() => {
+    let active = true;
+    if (!session || !idUsuario) return;
+
+    studentService.relatosDoUsuario(session.token, idUsuario)
+      .then((result) => { if (active) setItems(result); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus relatos."); })
+      .finally(() => { if (active) { setLoading(false); setRefreshing(false); } });
+
+    return () => { active = false; };
+  }, [idUsuario, reloadKey, session]);
 
   if (!session) return <Redirect href="/login" />;
 
+  const refresh = () => {
+    if (!idUsuario) {
+      showFeedback("Não foi possível identificar o usuário autenticado.", "warning");
+      return;
+    }
+    setRefreshing(true);
+    setError("");
+    setReloadKey((value) => value + 1);
+  };
+
   async function submit() {
-    if (!token || !descricao.trim()) return;
+    if (!session || !descricao.trim()) {
+      showFeedback("Preencha a descrição do relato.", "warning");
+      return;
+    }
     setSubmitting(true);
     try {
-      const result = await studentService.criarRelato(token, tipo, descricao.trim());
-      setItems((current) => [result.relato, ...current]);
+      await studentService.criarRelato(session.token, tipo, descricao.trim());
       setDescricao("");
       setCreating(false);
       showFeedback("Relato enviado para a administração.", "success");
-    } catch (error) {
-      showFeedback(error instanceof Error ? error.message : "Tente novamente.", "error");
+      refresh();
+    } catch (cause) {
+      showFeedback(cause instanceof Error ? cause.message : "Não foi possível enviar o relato.", "error");
     } finally {
       setSubmitting(false);
     }
   }
 
-  const refreshUnavailable = () => showFeedback("O histórico privado de relatos não está disponível na API atual.", "info");
-
-  return <ScreenShell eyebrow="SUA VOZ IMPORTA" title="Relatos" subtitle="Sugestões e reclamações enviadas à administração." onRefresh={refreshUnavailable}>
+  return <ScreenShell eyebrow="SUA VOZ IMPORTA" title="Relatos" subtitle="Sugestões e reclamações enviadas à administração." refreshing={refreshing} onRefresh={refresh}>
     {creating ? <ContentCard style={styles.form}>
       <Pressable onPress={() => setCreating(false)} style={styles.back}><Ionicons name="arrow-back" size={17} color="#bd0010" /><Text style={styles.backText}>Voltar aos relatos</Text></Pressable>
       <Text style={styles.label}>Tipo de relato</Text>
@@ -53,22 +80,30 @@ export default function ReportsScreen() {
       <Pressable style={[styles.primary, (submitting || !descricao.trim()) && styles.disabled]} onPress={submit} disabled={submitting || !descricao.trim()}><Text style={styles.primaryText}>{submitting ? "Enviando..." : "Enviar relato"}</Text></Pressable>
     </ContentCard> : <>
       <Pressable style={styles.create} onPress={() => setCreating(true)}><Ionicons name="add" size={21} color="#fff" /><Text style={styles.createText}>Criar relato</Text></Pressable>
-      {items.length ? items.map((item) => <ReportCard key={item.id_relato} item={item} />) : <EmptyState title="Nenhum relato nesta sessão" detail="O histórico privado não está disponível na API atual. Os relatos criados agora serão exibidos aqui sem consultar dados de outros usuários." />}
-      {items.length > 0 && <Text style={styles.disclaimer}>O histórico completo não pode ser atualizado até a API oferecer uma consulta limitada ao aluno autenticado.</Text>}
+      {!idUsuario ? <ErrorState message="Não foi possível identificar o usuário autenticado." /> : loading ? <LoadingState label="Carregando seus relatos..." /> : error ? <ErrorState message={error} onRetry={refresh} /> : items.length ? items.map((item) => <ReportCard key={item.id_relato} item={item} />) : <EmptyState title="Nenhum relato enviado" detail="Seus relatos enviados aparecerão aqui." />}
     </>}
   </ScreenShell>;
 }
 
 function ReportCard({ item }: { item: Relato }) {
   const answered = Boolean(item.resposta?.trim());
-  const statusLabel = item.status === "CORPORATIVO" ? "Encaminhado ao corporativo" : item.status === "LIDO" ? "Lido" : item.status === "ENVIADO" ? "Enviado" : item.status;
+  const statusLabel = item.status === "CORPORATIVO" ? "Encaminhado ao corporativo" : item.status === "LIDO" ? "Lido" : item.status === "ENVIADO" ? "Enviado" : item.status === "PENDENTE" ? "Pendente" : item.status;
+  const adminName = item.admin?.usuario?.nome;
+
   return <ContentCard style={styles.reportCard}>
     <View style={styles.cardTop}><Text style={styles.kind}>{item.tipo === "SUGESTAO" ? "SUGESTÃO" : "RECLAMAÇÃO"}</Text><Text style={[styles.status, item.status === "PENDENTE" ? styles.pending : item.status === "LIDO" ? styles.read : item.status === "CORPORATIVO" ? styles.corporate : styles.sent]}>{statusLabel}</Text></View>
     <Text style={styles.description}>{item.descricao}</Text>
-    <Text style={styles.date}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.dt_envio))}</Text>
+    <Text style={styles.date}>Enviado em {formatDate(item.dt_envio)}</Text>
+    {item.prazo_resposta && <Text style={styles.date}>Prazo de resposta: {formatDate(item.prazo_resposta)}</Text>}
     <View style={styles.answerRow}><View style={[styles.dot, answered && styles.greenDot]} /><Text style={styles.answerLabel}>{answered ? "Resposta recebida" : "Aguardando retorno"}</Text></View>
-    {answered && <View style={styles.response}><Text style={styles.responseTitle}>Resposta da administração</Text><Text style={styles.responseText}>{item.resposta}</Text></View>}
+    {answered && <View style={styles.response}><Text style={styles.responseTitle}>{adminName ? `Resposta de ${adminName}` : "Resposta da administração"}</Text><Text style={styles.responseText}>{item.resposta}</Text></View>}
   </ContentCard>;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data não disponível";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
 const styles = StyleSheet.create({
@@ -105,5 +140,4 @@ const styles = StyleSheet.create({
   response: { padding: 11, borderLeftWidth: 3, borderLeftColor: "#22a365", borderRadius: 8, backgroundColor: "#f5faf7", gap: 5 },
   responseTitle: { color: "#38835c", fontSize: 10, fontWeight: "800" },
   responseText: { color: "#43564a", fontSize: 12, lineHeight: 18 },
-  disclaimer: { color: "#838d9d", fontSize: 11, lineHeight: 16 },
 });

@@ -9,8 +9,10 @@ import { useFeedback } from "@/context/FeedbackContext";
 
 export default function ResetPasswordScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
+  const tokenParam = Array.isArray(params.token) ? params.token[0] : params.token;
   const router = useRouter();
-  const [token, setToken] = useState(() => typeof params.token === "string" ? params.token : "");
+  const [manualToken, setManualToken] = useState("");
+  const token = tokenParam ?? manualToken;
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,8 +27,8 @@ export default function ResetPasswordScreen() {
       showFeedback("Confira a nova senha e a confirmação.", "error");
       return;
     }
-    if (new TextEncoder().encode(novaSenha).length < 8 || new TextEncoder().encode(novaSenha).length > 72) {
-      showFeedback("Use uma senha entre 8 e 72 bytes.", "error");
+    if (novaSenha.length < 6 || new TextEncoder().encode(novaSenha).length > 72) {
+      showFeedback("Use uma senha com pelo menos 6 caracteres e no máximo 72 bytes.", "error");
       return;
     }
     setSubmitting(true);
@@ -49,10 +51,10 @@ export default function ResetPasswordScreen() {
           <Link href="/login" style={styles.back}><Ionicons name="arrow-back" size={17} color="#bd0010" /> Voltar ao login</Link>
           <Text style={styles.eyebrow}>RECUPERAÇÃO DE ACESSO</Text>
           <Text style={styles.title}>Crie uma nova senha</Text>
-          <Text style={styles.subtitle}>O link expira em 30 minutos e só pode ser usado uma vez. Se o e-mail abriu no navegador, cole abaixo o token da URL.</Text>
-          {!token && <><Text style={styles.label}>Token do e-mail</Text><TextInput style={styles.input} autoCapitalize="none" autoCorrect={false} autoComplete="one-time-code" value={token} onChangeText={setToken} placeholder="Cole seu token aqui" placeholderTextColor="#9aa3b0" /></>}
+          <Text style={styles.subtitle}>O link expira em 1 hora e só pode ser usado uma vez. Se o e-mail abriu no navegador, cole abaixo o token da URL.</Text>
+          {!token && <><Text style={styles.label}>Token do e-mail</Text><TextInput style={styles.input} autoCapitalize="none" autoCorrect={false} autoComplete="one-time-code" value={manualToken} onChangeText={setManualToken} placeholder="Cole seu token aqui" placeholderTextColor="#9aa3b0" /></>}
           <Text style={styles.label}>Nova senha</Text>
-          <TextInput style={styles.input} secureTextEntry autoComplete="new-password" value={novaSenha} onChangeText={setNovaSenha} maxLength={72} placeholder="Mínimo de 8 bytes" placeholderTextColor="#9aa3b0" />
+          <TextInput style={styles.input} secureTextEntry autoComplete="new-password" value={novaSenha} onChangeText={setNovaSenha} maxLength={72} placeholder="Mínimo de 6 caracteres" placeholderTextColor="#9aa3b0" />
           <Text style={styles.label}>Confirme a nova senha</Text>
           <TextInput style={styles.input} secureTextEntry autoComplete="new-password" value={confirmacao} onChangeText={setConfirmacao} maxLength={72} placeholder="Repita a nova senha" placeholderTextColor="#9aa3b0" />
           <Pressable style={[styles.button, submitting && styles.disabled]} onPress={submit} disabled={submitting || !novaSenha || !confirmacao}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Redefinir senha</Text>}</Pressable>

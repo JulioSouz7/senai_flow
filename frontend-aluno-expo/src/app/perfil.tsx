@@ -1,19 +1,60 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { ContentCard } from "@/components/ContentCard";
-import { ScreenShell } from "@/components/ScreenShell";
+import { ErrorState, ScreenShell } from "@/components/ScreenShell";
 import { useFeedback } from "@/context/FeedbackContext";
+import { studentService } from "@/services/studentService";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { session, logout } = useAuth();
   const { showFeedback } = useFeedback();
+  const [className, setClassName] = useState<string | null>(null);
+  const [classLoaded, setClassLoaded] = useState(false);
+  const [classError, setClassError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const sessionToken = session?.token;
 
+  useEffect(() => {
+    let active = true;
+    if (!sessionToken) return () => { active = false; };
+    studentService.minhaTurma(sessionToken)
+      .then((result) => {
+        if (active) {
+          setClassName(result.turma?.nome ?? null);
+          setClassError("");
+        }
+      })
+      .catch((cause) => {
+        if (active) setClassError(cause instanceof Error ? cause.message : "Não foi possível carregar sua turma.");
+      })
+      .finally(() => {
+        if (active) {
+          setClassLoaded(true);
+          setRefreshing(false);
+        }
+      });
+    return () => { active = false; };
+  }, [reloadKey, sessionToken]);
+
+  const refresh = () => {
+    setRefreshing(true);
+    setClassError("");
+    setReloadKey((value) => value + 1);
+  };
   if (!session) return <Redirect href="/login" />;
+
   const student = session.usuario.aluno;
   const initials = session.usuario.nome.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  const classLabel = classError
+    ? "Não foi possível carregar"
+    : !classLoaded
+      ? "Carregando..."
+      : className || "Turma não atribuída";
 
   async function handleLogout() {
     await logout();
@@ -21,13 +62,23 @@ export default function ProfileScreen() {
     router.replace("/login");
   }
 
-  return <ScreenShell eyebrow="MINHA CONTA" title="Perfil" subtitle="Seus dados de acesso." showProfile={false}>
-    <Pressable style={styles.homeReturn} onPress={() => router.replace("/(tabs)")}><Ionicons name="home-outline" size={17} color="#bd0010" /><Text style={styles.homeReturnText}>Voltar para Minha Turma</Text></Pressable>
+  return <ScreenShell
+    eyebrow="MINHA CONTA"
+    title="Perfil"
+    subtitle="Seus dados de acesso."
+    showProfile={false}
+    refreshing={refreshing}
+    onRefresh={refresh}
+    headingAction={<Pressable accessibilityRole="button" style={styles.homeAction} onPress={() => router.replace("/(tabs)")}>
+      <Ionicons name="home-outline" size={16} color="#bd0010" /><Text style={styles.homeActionText}>Minha Turma</Text>
+    </Pressable>}
+  >
     <ContentCard style={styles.identity}><View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View><View style={styles.identityText}><Text style={styles.name}>{session.usuario.nome}</Text><Text style={styles.role}>ALUNO</Text></View></ContentCard>
     <ContentCard style={styles.info}>
       <Field label="E-mail institucional" value={session.usuario.email} />
-      <View style={styles.columns}><Field label="Turma" value={student?.turma?.nome || "Turma não atribuída"} /><Field label="Matrícula" value={student?.matricula || "Não informada"} /></View>
+      <View style={styles.columns}><Field label="Turma" value={classLabel} /><Field label="Matrícula" value={student?.matricula || "Não informada"} /></View>
     </ContentCard>
+    {classError ? <ErrorState message={classError} onRetry={refresh} /> : null}
     <Pressable style={styles.supportButton} onPress={() => router.push("/suporte")}><Ionicons name="headset-outline" size={20} color="#fff" /><Text style={styles.supportText}>Central de Suporte / FAQ</Text></Pressable>
     <Pressable style={styles.logout} onPress={handleLogout}><Ionicons name="log-out-outline" size={19} color="#788398" /><Text style={styles.logoutText}>Sair da conta</Text></Pressable>
   </ScreenShell>;
@@ -50,8 +101,8 @@ const styles = StyleSheet.create({
   label: { color: "#929bab", fontSize: 12, fontWeight: "700" },
   value: { color: "#263248", fontSize: 14, fontWeight: "700" },
   supportButton: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 11, backgroundColor: "#111a2e" },
-  homeReturn: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 6 },
-  homeReturnText: { color: "#bd0010", fontSize: 13, fontWeight: "700" },
+  homeAction: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, borderRadius: 10, backgroundColor: "#fff" },
+  homeActionText: { color: "#bd0010", fontSize: 12, fontWeight: "700" },
   supportText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   logout: { minHeight: 45, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   logoutText: { color: "#788398", fontSize: 13, fontWeight: "600" },

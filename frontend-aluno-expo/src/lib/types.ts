@@ -42,9 +42,15 @@ export interface RankingSala {
   id_sala: number;
   nome_sala: string;
   predio: string;
+  foto?: string | null;
   total_pontos: number;
   total_avaliacoes: number;
   semestre_letivo: string;
+}
+
+export interface Sala {
+  id_sala: number;
+  foto: string | null;
 }
 
 export interface Predio {
@@ -78,4 +84,22 @@ export interface Relato {
   prazo_resposta?: string | null;
   status: string;
   resposta?: string | null;
+  encaminhada_corporativo?: boolean;
+  usuario?: { nome: string; email: string; perfil: string };
+  admin?: {
+    id_adm: number;
+    usuario?: { nome: string; email: string };
+  } | null;
+}
+
+export interface ChamadoSuporte {
+  id_chamado: number;
+  assunto: string;
+  descricao: string;
+  status: "ABERTO" | "EM_ANDAMENTO" | "RESOLVIDO" | string;
+  dt_abertura: string;
+  admin_resp?: {
+    id_adm: number;
+    usuario?: { nome: string; email: string };
+  } | null;
 }
