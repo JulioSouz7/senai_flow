@@ -1,0 +1,30 @@
+﻿# Dependências
+node_modules/
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Arquivos locais
+*.local
+
+# Builds e caches
+dist/
+dist-ssr/
+build/
+.next/
+.expo/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Sistema e editores
+.DS_Store
+Thumbs.db
+.idea/

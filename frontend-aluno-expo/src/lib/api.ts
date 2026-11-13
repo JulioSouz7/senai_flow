@@ -1,4 +1,10 @@
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:3001").replace(/\/$/, "");
+import Constants from "expo-constants";
+
+const metroHost = Constants.expoConfig?.hostUri?.split(":")[0];
+const discoveredHost = metroHost && !["localhost", "127.0.0.1"].includes(metroHost)
+  ? `http://${metroHost}:3001`
+  : "http://localhost:3001";
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || discoveredHost).replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number) {

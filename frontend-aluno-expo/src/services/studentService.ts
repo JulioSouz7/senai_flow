@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api";
-import type { AreaRisco, Comunicado, Faq, MinhaTurma, Predio, RankingSala, Relato } from "@/lib/types";
+import type { AreaRisco, ChamadoSuporte, Comunicado, Faq, MinhaTurma, Predio, RankingSala, Relato, Sala } from "@/lib/types";
 
 interface TurmaDetail {
   docente_turma?: { docente?: { id_docente: number; usuario?: { nome: string } } }[];
@@ -22,8 +22,20 @@ export const studentService = {
     return apiRequest<Comunicado[]>("/comunicados", { token });
   },
 
-  ranking(token: string) {
-    return apiRequest<RankingSala[]>("/pontuacoes/ranking", { token });
+  async ranking(token: string) {
+    const [ranking, salas] = await Promise.all([
+      apiRequest<RankingSala[]>("/pontuacoes/ranking", { token }),
+      apiRequest<Sala[]>("/salas", { token }),
+    ]);
+    const fotosPorSala = new Map(salas.map((sala) => [sala.id_sala, sala.foto]));
+    const salasForaDaListaAtiva = ranking.filter(
+      (item) => !fotosPorSala.has(item.id_sala) && item.nome_sala !== "Sala Removida",
+    );
+    const detalhesForaDaLista = await Promise.all(
+      salasForaDaListaAtiva.map((item) => apiRequest<Sala>(`/salas/${item.id_sala}`, { token })),
+    );
+    detalhesForaDaLista.forEach((sala) => fotosPorSala.set(sala.id_sala, sala.foto));
+    return ranking.map((item) => ({ ...item, foto: fotosPorSala.get(item.id_sala) ?? null }));
   },
 
   predios(token: string) {
@@ -46,7 +58,15 @@ export const studentService = {
     });
   },
 
+  relatosDoUsuario(token: string, id_usuario: number) {
+    return apiRequest<Relato[]>(`/relatos-sugestoes/usuario/${id_usuario}`, { token });
+  },
+
   abrirChamado(token: string, assunto: string, descricao: string) {
     return apiRequest("/chamados", { method: "POST", token, body: { assunto, descricao } });
+  },
+
+  chamadosDoAluno(token: string, id_aluno: number) {
+    return apiRequest<ChamadoSuporte[]>(`/chamados/aluno/${id_aluno}`, { token });
   },
 };

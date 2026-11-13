@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { RefreshControl, ScrollView, StyleSheet, Text, Pressable, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { PortalHeader } from "@/components/PortalHeader";
 
 interface ScreenShellProps extends PropsWithChildren {
@@ -11,9 +11,10 @@ interface ScreenShellProps extends PropsWithChildren {
   refreshing?: boolean;
   onRefresh?: () => void;
   showProfile?: boolean;
+  headingAction?: ReactNode;
 }
 
-export function ScreenShell({ eyebrow, title, subtitle, refreshing = false, onRefresh, showProfile = true, children }: ScreenShellProps) {
+export function ScreenShell({ eyebrow, title, subtitle, refreshing = false, onRefresh, showProfile = true, headingAction, children }: ScreenShellProps) {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
@@ -28,9 +29,12 @@ export function ScreenShell({ eyebrow, title, subtitle, refreshing = false, onRe
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
-          {onRefresh && <Pressable accessibilityRole="button" accessibilityLabel={`Atualizar ${title}`} onPress={onRefresh} disabled={refreshing} style={styles.refreshButton}>
-            <Ionicons name="refresh" size={19} color={refreshing ? "#9aa3b0" : "#596579"} />
-          </Pressable>}
+          {(headingAction || onRefresh) && <View style={styles.headingActions}>
+            {headingAction}
+            {onRefresh && <Pressable accessibilityRole="button" accessibilityLabel={`Atualizar ${title}`} onPress={onRefresh} disabled={refreshing} style={styles.refreshButton}>
+              <Ionicons name="refresh" size={19} color={refreshing ? "#9aa3b0" : "#596579"} />
+            </Pressable>}
+          </View>}
         </View>
         {children}
       </ScrollView>
@@ -52,12 +56,13 @@ export function EmptyState({ title, detail }: { title: string; detail: string })
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f3f5f7" },
-  content: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 30, gap: 14 },
+  content: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 112, gap: 14 },
   headingRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 4 },
-  headingCopy: { flex: 1, gap: 5 },
+  headingCopy: { flex: 1, minWidth: 0, gap: 5 },
   eyebrow: { color: "#e30613", fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
-  title: { color: "#111a2e", fontSize: 28, lineHeight: 34, fontWeight: "800" },
+  title: { flexShrink: 1, color: "#111a2e", fontSize: 28, lineHeight: 34, fontWeight: "800" },
   subtitle: { color: "#788398", fontSize: 14, lineHeight: 20 },
+  headingActions: { flexDirection: "row", alignItems: "center", gap: 7 },
   refreshButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#e2e7ee", borderRadius: 11, backgroundColor: "#fff" },
   state: { padding: 22, alignItems: "center", borderRadius: 14, backgroundColor: "#fff" },
   stateText: { color: "#788398", fontSize: 13 },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,12 +14,14 @@ export default function ForgotPasswordScreen() {
   const { showFeedback } = useFeedback();
 
   async function submit() {
-    if (!email.trim()) return;
+    if (!email.trim()) {
+      showFeedback("Informe seu e-mail institucional.", "warning");
+      return;
+    }
     setSubmitting(true);
     try {
-      const result = await authService.requestPasswordReset(email.trim());
+      await authService.requestPasswordReset(email.trim());
       setSubmitted(true);
-      showFeedback(result.message, "success");
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "A recuperação está indisponível. Tente novamente mais tarde.";
       showFeedback(message, "error");
@@ -41,7 +43,10 @@ export default function ForgotPasswordScreen() {
             <TextInput style={styles.input} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="nome@aluno.senai.br" placeholderTextColor="#9aa3b0" value={email} onChangeText={setEmail} maxLength={150} />
             <Pressable style={[styles.button, submitting && styles.disabled]} onPress={submit} disabled={submitting || !email.trim()}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Enviar instruções</Text>}</Pressable>
           </>}
-          {submitted && <Text style={styles.notice}>Se o e-mail estiver cadastrado, enviaremos instruções para redefinir a senha.</Text>}
+          {submitted && <View accessibilityRole="alert" style={styles.notice}>
+            <Ionicons name="checkmark-circle" size={20} color="#26734a" />
+            <Text style={styles.noticeText}>Se o e-mail estiver cadastrado, enviaremos instruções para redefinir a senha.</Text>
+          </View>}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -61,5 +66,6 @@ const styles = StyleSheet.create({
   button: { minHeight: 54, alignItems: "center", justifyContent: "center", marginTop: 6, borderRadius: 11, backgroundColor: "#e30613" },
   buttonText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   disabled: { opacity: 0.6 },
-  notice: { padding: 14, borderWidth: 1, borderColor: "#cfe7d7", borderRadius: 11, backgroundColor: "#f2faf4", color: "#236942", fontSize: 14, lineHeight: 21 },
+  notice: { flexDirection: "row", alignItems: "flex-start", gap: 9, padding: 14, borderWidth: 1, borderColor: "#cfe7d7", borderRadius: 11, backgroundColor: "#f2faf4" },
+  noticeText: { flex: 1, color: "#236942", fontSize: 14, lineHeight: 21 },
 });

@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
-import { useFeedback } from "@/context/FeedbackContext";
 import { ApiError } from "@/lib/api";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, session, pendingSession, loading } = useAuth();
-  const { showFeedback } = useFeedback();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -24,9 +21,10 @@ export default function LoginScreen() {
 
   async function submit() {
     if (!email.trim() || !senha) {
-      showFeedback("Informe seu e-mail e sua senha.", "error");
+      setErrorMessage("Informe seu e-mail e sua senha.");
       return;
     }
+    setErrorMessage("");
     setSubmitting(true);
     try {
       const result = await login(email.trim(), senha);
@@ -35,7 +33,7 @@ export default function LoginScreen() {
       const message = error instanceof ApiError && error.status === 401
         ? "E-mail ou senha inválidos."
         : error instanceof Error ? error.message : "Não foi possível entrar. Verifique a conexão.";
-      showFeedback(message, "error");
+      setErrorMessage(message);
     } finally {
       setSubmitting(false);
     }
@@ -45,17 +43,36 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.brandRow}><View style={styles.brandMark}><Text style={styles.markText}>S</Text></View><Text style={styles.brand}>SENAI <Text style={styles.brandBold}>Flow</Text></Text></View>
-          <View style={styles.intro}><Text style={styles.eyebrow}>PORTAL DO ALUNO</Text><Text style={styles.title}>Seu SENAI,{"\n"}mais perto.</Text><Text style={styles.subtitle}>Entre com suas credenciais institucionais.</Text></View>
-          <View style={styles.form}>
-            <Text style={styles.label}>E-mail institucional</Text>
-            <View style={styles.inputWrap}><Ionicons name="mail-outline" size={19} color="#8993a3" /><TextInput style={styles.input} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="nome@aluno.senai.br" placeholderTextColor="#a4adba" value={email} onChangeText={setEmail} returnKeyType="next" /></View>
-            <Text style={styles.label}>Senha</Text>
-            <View style={styles.inputWrap}><Ionicons name="lock-closed-outline" size={19} color="#8993a3" /><TextInput style={styles.input} autoComplete="password" secureTextEntry={!showPassword} placeholder="Sua senha" placeholderTextColor="#a4adba" value={senha} onChangeText={setSenha} onSubmitEditing={submit} returnKeyType="go" /><Pressable accessibilityRole="button" accessibilityLabel={showPassword ? "Ocultar senha" : "Mostrar senha"} onPress={() => setShowPassword((value) => !value)}><Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#788398" /></Pressable></View>
-            <Link href="/esqueci-senha" style={styles.forgot}>Esqueci minha senha</Link>
-            <Pressable accessibilityRole="button" style={[styles.primary, submitting && styles.disabled]} onPress={submit} disabled={submitting}>{submitting ? <ActivityIndicator color="#fff" /> : <><Text style={styles.primaryText}>Entrar na plataforma</Text><Ionicons name="arrow-forward" size={19} color="#fff" /></>}</Pressable>
+          <View style={styles.brandHeader}>
+            <View style={styles.brandRow}>
+              <View style={styles.brandMark}><Text style={styles.markText}>S</Text></View>
+              <View>
+                <Text style={styles.brand}><Text style={styles.brandSenai}>SENAI</Text> <Text style={styles.brandFlow}>Flow</Text></Text>
+                <Text style={styles.brandSubtitle}>ALMIRANTE TAMANDARÉ</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.footer}><Ionicons name="shield-checkmark-outline" size={18} color="#8993a3" /><Text style={styles.footerText}>Acesso exclusivo da comunidade SENAI</Text></View>
+
+          <View style={styles.intro}>
+            <Text style={styles.eyebrow}>PORTAL INSTITUCIONAL</Text>
+            <Text style={styles.title}>Bem-vindo ao <Text style={styles.titleSenai}>SENAI</Text> <Text style={styles.titleFlow}>Flow</Text></Text>
+            <Text style={styles.subtitle}>Acesse com suas credenciais educacionais.</Text>
+          </View>
+
+          <View style={styles.formCard}>
+            <Text style={styles.label}>E-mail institucional</Text>
+            <TextInput style={styles.input} autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="nome@aluno.senai.br" placeholderTextColor="#9ca3af" value={email} onChangeText={setEmail} returnKeyType="next" />
+
+            <Text style={styles.label}>Senha</Text>
+            <TextInput style={styles.input} autoCapitalize="none" secureTextEntry placeholder="Sua senha" placeholderTextColor="#9ca3af" value={senha} onChangeText={setSenha} onSubmitEditing={submit} returnKeyType="go" />
+
+            {errorMessage ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text> : null}
+            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.primary, (pressed || submitting) && styles.buttonPressed]} onPress={submit} disabled={submitting}>
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Entrar na plataforma</Text>}
+            </Pressable>
+            <Text style={styles.secureNote}>Acesso exclusivo da comunidade SENAI</Text>
+          </View>
+          <Text style={styles.footer}>Espaços que fluem. Ensino que transforma.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -63,26 +80,30 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f3f5f7" },
+  safe: { flex: 1, backgroundColor: "#f4f5f7" },
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 28 },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 52 },
-  brandMark: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#e30613" },
-  markText: { color: "#fff", fontSize: 26, fontWeight: "900" },
-  brand: { color: "#111a2e", fontSize: 19, fontWeight: "600" },
-  brandBold: { fontWeight: "900" },
-  intro: { gap: 9, marginBottom: 32 },
-  eyebrow: { color: "#e30613", fontSize: 11, fontWeight: "900", letterSpacing: 1.15 },
-  title: { color: "#111a2e", fontSize: 35, lineHeight: 40, fontWeight: "800" },
-  subtitle: { color: "#788398", fontSize: 15, lineHeight: 22 },
-  form: { gap: 11 },
-  label: { marginTop: 6, color: "#38445a", fontSize: 13, fontWeight: "700" },
-  inputWrap: { minHeight: 54, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: "#dce1e8", borderRadius: 11, backgroundColor: "#fff" },
-  input: { flex: 1, minWidth: 0, paddingVertical: 14, color: "#111a2e", fontSize: 15 },
-  forgot: { alignSelf: "flex-end", marginTop: 1, marginBottom: 8, color: "#bd0010", fontSize: 12, fontWeight: "700" },
-  primary: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderRadius: 11, backgroundColor: "#e30613" },
+  content: { flexGrow: 1, paddingHorizontal: 22, paddingVertical: 24, justifyContent: "center", alignItems: "center" },
+  brandHeader: { width: "100%", maxWidth: 520, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 42 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  brandMark: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: "#e30613" },
+  markText: { color: "#fff", fontSize: 28, fontStyle: "italic", fontWeight: "800" },
+  brand: { color: "#111827", fontSize: 21, fontWeight: "400", letterSpacing: -0.5 },
+  brandSenai: { fontWeight: "800" },
+  brandFlow: { fontWeight: "400" },
+  brandSubtitle: { color: "#6b7280", fontSize: 10, fontWeight: "700", letterSpacing: 0.8, marginTop: 3 },
+  intro: { width: "100%", maxWidth: 520, marginBottom: 24 },
+  eyebrow: { marginBottom: 8, color: "#e30613", fontSize: 11, fontWeight: "800", letterSpacing: 1.2 },
+  title: { color: "#111827", fontSize: 27, fontWeight: "800", lineHeight: 33 },
+  titleSenai: { fontWeight: "800" },
+  titleFlow: { fontWeight: "400" },
+  subtitle: { marginTop: 7, color: "#6b7280", fontSize: 14, lineHeight: 21 },
+  formCard: { width: "100%", maxWidth: 520, padding: 20, borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 14, backgroundColor: "#fff" },
+  label: { marginTop: 12, marginBottom: 7, color: "#374151", fontSize: 13, fontWeight: "700" },
+  input: { minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: "#d1d5db", borderRadius: 10, color: "#111827", fontSize: 15, backgroundColor: "#fff" },
+  error: { marginTop: 14, padding: 12, borderRadius: 9, color: "#b91c1c", backgroundColor: "#fef2f2", fontSize: 13, lineHeight: 19 },
+  primary: { minHeight: 52, alignItems: "center", justifyContent: "center", marginTop: 14, borderRadius: 10, backgroundColor: "#e30613" },
   primaryText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  disabled: { opacity: 0.65 },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 24 },
-  footerText: { color: "#8993a3", fontSize: 11 },
+  buttonPressed: { opacity: 0.78 },
+  secureNote: { marginTop: 16, color: "#6b7280", fontSize: 12, textAlign: "center" },
+  footer: { width: "100%", maxWidth: 520, marginTop: 30, color: "#9ca3af", fontSize: 12, textAlign: "center" },
 });
